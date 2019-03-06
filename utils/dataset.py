@@ -1,40 +1,27 @@
 # -*- coding: utf-8 -*-
 
 import torch
-import torch.utils.data as Data
 from torch.nn.utils.rnn import pad_sequence
-
-
-class TextDataset(Data.Dataset):
-
-    def __init__(self, *data):
-        super(TextDataset, self).__init__()
-        self.items = list(zip(*data))
-
-    def __getitem__(self, index):
-        return self.items[index]
-
-    def __len__(self):
-        return len(self.items)
+from torch.utils.data import Dataset
 
 
 def collate_fn(data):
-    batch = zip(*data)
-    return tuple([torch.tensor(x) if len(x[0].size()) < 1 else pad_sequence(x, True) for x in batch])
+    reprs = [pad_sequence(i, True) for i in zip(*data)]
+    if torch.cuda.is_available():
+        reprs = [i.cuda() for i in reprs]
+
+    return reprs
 
 
-def collate_fn_cuda(data):
-    batch = zip(*data)
-    idx = 1
-    tup = []
-    for x in batch:
-        if idx == 3:
-            tup.append(torch.tensor(x).cuda() if len(
-                x[0].size()) < 1 else pad_sequence(x, True, padding_value=-1).cuda())
-        else:
-            tup.append(torch.tensor(x).cuda() if len(
-                x[0].size()) < 1 else pad_sequence(x, True).cuda())
-        idx += 1
+class TextDataset(Dataset):
 
-    return tuple(tup)
-    # return tuple([torch.tensor(x).cuda() if len(x[0].size()) < 1 else pad_sequence(x, True).cuda() for x in batch])
+    def __init__(self, items):
+        super(TextDataset, self).__init__()
+
+        self.items = items
+
+    def __getitem__(self, index):
+        return tuple(item[index] for item in self.items)
+
+    def __len__(self):
+        return len(self.items[0])

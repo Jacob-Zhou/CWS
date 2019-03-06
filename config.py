@@ -3,17 +3,16 @@
 
 class Config(object):
 
-    train_file = '../data/wspos/pku126/pku126-train.conll'
-    dev_file = '../data/wspos/pku126/pku126-dev.conll'
-    test_file = '../data/wspos/pku126/pku126-test.conll'
+    train_file = 'data/pku126/pku126-train.conll'
+    dev_file = 'data/pku126/pku126-dev.conll'
+    test_file = 'data/pku126/pku126-test.conll'
+    embedding_file = 'data/giga.100.txt'
 
-    embedding_file = ''
 
-
-class Char_LSTM_CRF_Config(Config):
+class CHAR_LSTM_CRF_CONFIG(Config):
     model = 'CHAR_LSTM_CRF'
-    net_file = './save/char_lstm_crf.pt'
-    vocab_file = './save/vocab.pkl'
+    net_file = 'save/char_lstm_crf.pt'
+    vocab_file = 'save/vocab.pkl'
 
     word_hidden = 300
     char_hidden = 200
@@ -23,8 +22,7 @@ class Char_LSTM_CRF_Config(Config):
     word_dim = 100
 
     optimizer = 'adam'
-    epoch = 100
-    gpu = 3
+    epochs = 100
     lr = 0.001
     batch_size = 50
     eval_batch = 100
@@ -35,5 +33,5 @@ class Char_LSTM_CRF_Config(Config):
 
 
 config = {
-    'char_lstm_crf': Char_LSTM_CRF_Config,
+    'char_lstm_crf': CHAR_LSTM_CRF_CONFIG,
 }

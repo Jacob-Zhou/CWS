@@ -31,5 +31,6 @@ class Corpus(object):
                     bichars.append(conll[1])
                     sequence.append(conll[2])
                     self.char_num += 1
-        print('%s : sentences:%d，chars:%d，bichars:%d' %
+                    self.bichar_num += 1
+        print('%s: sentences:%d，chars:%d，bichars:%d' %
               (filename, self.sentence_num, self.char_num, self.bichar_num))

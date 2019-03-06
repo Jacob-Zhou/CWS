@@ -3,9 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.rnn import *
-
-from module import *
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class CHAR_LSTM_CRF(nn.Module):
@@ -41,8 +39,8 @@ class CHAR_LSTM_CRF(nn.Module):
         # self.hidden = nn.Linear(word_hidden, word_hidden//2, bias=True)
         self.out = nn.Linear(word_hidden, n_target, bias=True)
         #self.crf = CRFlayer(n_target)
-        self.loss_func = nn.CrossEntropyLoss(
-            size_average=False, ignore_index=-1)
+        self.criterion = nn.CrossEntropyLoss(reduction='sum', ignore_index=-1)
+
         self.reset_parameters()
 
     def load_pretrained_embedding(self, pre_embeddings):
@@ -71,14 +69,13 @@ class CHAR_LSTM_CRF(nn.Module):
         bichar_vec = self.embedding_bichar(bichar_idxs)
         feature = self.drop1(torch.cat((char_vec, bichar_vec), -1))
 
-        sorted_lens, sorted_idx = torch.sort(sen_lens, dim=0, descending=True)
-        reverse_idx = torch.sort(sorted_idx, dim=0)[1]
-        feature = feature[sorted_idx]
-        feature = pack_padded_sequence(feature, sorted_lens, batch_first=True)
+        sorted_lens, indices = torch.sort(sen_lens, descending=True)
+        inverse_indices = torch.argsort(indices, dim=0)
+        feature = pack_padded_sequence(feature[indices], sorted_lens, True)
 
         r_out, state = self.lstm_layer(feature, None)
         out, _ = pad_packed_sequence(r_out, batch_first=True, padding_value=0)
-        out = out[reverse_idx]
+        out = out[inverse_indices]
         # out = torch.tanh(self.hidden(out))
         out = self.out(out)
         return out
@@ -91,7 +88,7 @@ class CHAR_LSTM_CRF(nn.Module):
 
     def get_loss(self, emit, labels):
         length, batch_size, _ = emit.size()
-        loss = self.loss_func(
+        loss = self.criterion(
             emit.view(length*batch_size, -1), labels.contiguous().view(-1))
         return loss
         #emit = emit.transpose(0, 1)

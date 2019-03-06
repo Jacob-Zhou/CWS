@@ -41,14 +41,13 @@ class Trainer(object):
 
         # begin to train
         print('start to train the model ')
-        for e in range(self.config.epoch):
-            print('==============================Epoch<%d>==============================' % (
-                e + 1), flush=True)
+        for epoch in range(1, self.config.epochs + 1):
+            print(f"Epoch {epoch} / {self.config.epochs}:")
             self.network.train()
             time_start = datetime.datetime.now()
 
             if self.config.optimizer == 'sgd':
-                self.lr_decay(self.optimizer, e,
+                self.lr_decay(self.optimizer, epoch,
                               self.config.decay, self.config.lr)
 
             for batch in train_loader:
@@ -62,27 +61,26 @@ class Trainer(object):
                 nn.utils.clip_grad_norm_(self.network.parameters(), 5.0)
                 self.optimizer.step()
 
-            with torch.no_grad():
-                train_loss, train_p, train_r, train_f = evaluator.eval(
-                    self.network, train_loader)
-                print('train : loss = %.4f  precision = %.4f  recall = %.4f  fmeasure = %.4f' % (
-                    train_loss, train_p, train_r, train_f))
+            train_loss, train_p, train_r, train_f = evaluator.evaluate(
+                self.network, train_loader)
+            print('train: loss = %.4f precision = %.4f recall = %.4f fmeasure = %.4f' % (
+                train_loss, train_p, train_r, train_f))
 
-                dev_loss, dev_p, dev_r, dev_f = evaluator.eval(
-                    self.network, dev_loader)
-                print('dev   : loss = %.4f  precision = %.4f  recall = %.4f  fmeasure = %.4f' % (
-                    dev_loss, dev_p, dev_r, dev_f))
+            dev_loss, dev_p, dev_r, dev_f = evaluator.evaluate(
+                self.network, dev_loader)
+            print('dev:   loss = %.4f precision = %.4f recall = %.4f fmeasure = %.4f' % (
+                dev_loss, dev_p, dev_r, dev_f))
 
-                test_loss, test_p, test_r, test_f = evaluator.eval(
-                    self.network, test_loader)
-                print('test  : loss = %.4f  precision = %.4f  recall = %.4f  fmeasure = %.4f' % (
-                    test_loss, test_p, test_r, test_f))
+            test_loss, test_p, test_r, test_f = evaluator.evaluate(
+                self.network, test_loader)
+            print('test:  loss = %.4f precision = %.4f recall = %.4f fmeasure = %.4f' % (
+                test_loss, test_p, test_r, test_f))
 
             # save the model when dev precision get better
             if dev_f > max_precision:
                 max_precision = dev_f
                 test_precision = test_f
-                max_epoch = e + 1
+                max_epoch = epoch
                 patience = 0
                 print('save the model...')
                 torch.save(self.network, self.config.net_file)
@@ -96,7 +94,7 @@ class Trainer(object):
                 break
 
         print('train finished with epoch: %d / %d' %
-              (e + 1, self.config.epoch))
+              (epoch, self.config.epoch))
         print('best epoch is epoch = %d ,the dev precision = %.4f the test precision = %.4f' %
               (max_epoch, max_precision, test_precision))
         print(str(datetime.datetime.now()))

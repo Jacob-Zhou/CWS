@@ -10,7 +10,7 @@ Data : CTB5
 
 ```
 python >= 3.6.3
-pytorch = 0.4.1
+pytorch == 0.4.1
 ```
 
 ## running
