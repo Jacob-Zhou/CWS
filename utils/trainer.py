@@ -90,11 +90,11 @@ class Trainer(object):
             time_end = datetime.datetime.now()
             print('iter executing time is ' +
                   str(time_end - time_start) + '\n')
-            if patience > self.config.patience:
+            if patience >= self.config.patience:
                 break
 
         print('train finished with epoch: %d / %d' %
-              (epoch, self.config.epoch))
+              (epoch, self.config.epochs))
         print('best epoch is epoch = %d ,the dev precision = %.4f the test precision = %.4f' %
               (max_epoch, max_precision, test_precision))
         print(str(datetime.datetime.now()))

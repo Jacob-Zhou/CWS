@@ -58,12 +58,8 @@ class CHAR_LSTM_CRF(nn.Module):
                         1 / self.embedding_dim ** 0.5)
 
     def forward(self, char_idxs, bichar_idxs):
-        # mask = torch.arange(x.size()[1]) < lens.unsqueeze(-1)
         mask = char_idxs.gt(0)
         sen_lens = mask.sum(1)
-
-        # char_vec = self.char_lstm.forward(char_idxs[mask])
-        # char_vec = pad_sequence(torch.split(char_vec, sen_lens.tolist()), True, padding_value=0)
 
         char_vec = self.embedding_char(char_idxs)
         bichar_vec = self.embedding_bichar(bichar_idxs)
