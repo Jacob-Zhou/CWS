@@ -12,7 +12,7 @@ class Config(object):
 class CHAR_LSTM_CRF_CONFIG(Config):
     model = 'CHAR_LSTM_CRF'
     net_file = 'save/char_lstm_crf.pt'
-    vocab_file = 'save/vocab.pkl'
+    vocab_file = 'save/vocab.pt'
 
     word_hidden = 300
     char_hidden = 200
