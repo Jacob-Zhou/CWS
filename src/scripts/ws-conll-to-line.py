@@ -5,10 +5,10 @@ import sys
 
 '''
 Zhenghua 2019.1.18
-input: 
+input:
 
-dict: 
-    one word a line: length word frequency \t bpes 
+dict:
+    one word a line: length word frequency \t bpes
 '''
 
 # 戴 戴#START# b-beg (bmes)
@@ -29,7 +29,7 @@ def conll_2_line(conll_file):
             else:
                 words[-1] = words[-1] + tokens[0]
             if i % 10000 == 0:
-                print(i // 10000, end=' ', file=sys.stderr, flush=True)
+                print(i // 10000, end=' ', file=sys.stderr)
 
 
 if __name__ == '__main__':

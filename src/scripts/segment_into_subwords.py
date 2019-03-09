@@ -5,15 +5,15 @@ import sys
 
 '''
 Zhenghua 2019.1.18
-input: 
-    
-dict: 
-    one word a line: length word frequency \t bpes 
+input:
+
+dict:
+    one word a line: length word frequency \t bpes
 '''
 
 
 def load_dict(dict_file_name, max_word_len, max_entry_num):
-    dicts = [dict() for i in range (max_word_len + 1)]
+    dicts = [dict() for i in range(max_word_len + 1)]
     with open(dict_file_name, mode='r', encoding='utf-8') as f:
         for (i, line) in enumerate(f):
             if i > max_entry_num > 0:
@@ -35,7 +35,7 @@ def load_dict(dict_file_name, max_word_len, max_entry_num):
                 dicts[w_len][word].append(posi)
             #print(word, bpes, dicts[w_len][word])
             if i % 10000 == 0:
-                print(i//10000, end=' ', file=sys.stderr, flush=True)
+                print(i//10000, end=' ', file=sys.stderr)
 
     for i in range(len(dicts)-1, 0, -1):
         if len(dicts[i]) == 0:
@@ -60,7 +60,7 @@ def segment_word_seq(word_seq_file, dicts):
                         print(token[bpes[j]:posi], end=' ')
             print()
             if i % 10000 == 0:
-                print(i//10000, end=' ', file=sys.stderr, flush=True)
+                print(i//10000, end=' ', file=sys.stderr)
 
 
 def one_word_to_bpes(token, dicts):
@@ -86,12 +86,12 @@ def segment_word_seq(word_seq_file, dicts):
                     print(token[j:k], end=' ')
             print()
             if i % 10000 == 0:
-                print(i//10000, end=' ', file=sys.stderr, flush=True)
+                print(i//10000, end=' ', file=sys.stderr)
 
 
-def segment_char_seq(char_seq_file, dicts):
+def segment_chars_seq(chars_seq_file, dicts):
     max_word_len = len(dicts) - 1
-    with open(char_seq_file, mode='r', encoding='utf-8') as f:
+    with open(chars_seq_file, mode='r', encoding='utf-8') as f:
         for (i, line) in enumerate(f):
             line = line.strip()
             l_len = len(line)
@@ -107,16 +107,19 @@ def segment_char_seq(char_seq_file, dicts):
                 print('%d_%s_%d' % (k[0], k[1], cntr[k]), end=' ')
             print()
             if i % 10000 == 0:
-                print(i//10000, end=' ', file=sys.stderr, flush=True)
+                print(i//10000, end=' ', file=sys.stderr)
 
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--dict_file', default='Giga-coarse-fine.dict-with-bpe.txt')
+    argparser.add_argument(
+        '--dict_file', default='Giga-coarse-fine.dict-with-bpe.txt')
     argparser.add_argument('--max_entry_num', default=-10000, type=int)
     argparser.add_argument('--max_word_len', default=100, type=int)
-    argparser.add_argument('--word_seq_file', default='Giga.CTB5.len-less-than-150.hwc.coarse-and-fine-100')
-    argparser.add_argument('--char_seq_file', default='Giga.CTB5.len-less-than-150.hwc.coarse-and-fine-100-chars') # not segmented
+    argparser.add_argument(
+        '--word_seq_file', default='Giga.CTB5.len-less-than-150.hwc.coarse-and-fine-100')
+    argparser.add_argument(
+        '--chars_seq_file', default='Giga.CTB5.len-less-than-150.hwc.coarse-and-fine-100-chars')  # not segmented
 
     args, extra_args = argparser.parse_known_args()
     dicts = load_dict(args.dict_file, args.max_word_len, args.max_entry_num)
@@ -124,10 +127,5 @@ if __name__ == '__main__':
     if args.word_seq_file:
         segment_word_seq(args.word_seq_file, dicts)
 
-    if args.char_seq_file:
-        segment_char_seq(args.char_seq_file, dicts)
-
-
-
-
-
+    if args.chars_seq_file:
+        segment_chars_seq(args.chars_seq_file, dicts)

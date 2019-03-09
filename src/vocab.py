@@ -1,6 +1,9 @@
 from collections import Counter
+
 import numpy as np
+
 from common import *
+
 
 class VocabDict(object):
     def __init__(self, name):
@@ -17,12 +20,12 @@ class VocabDict(object):
 
     #  ------ _counter ------
     def add_key_into_counter(self, k):
-        assert self.is_locked() is False
+        assert not self.is_locked()
         self._counter[k] += 1
 
     def save(self, file_name):
-        assert self.is_locked() is False
-        self.set_lock(True)  # bzhang
+        assert not self.is_locked()
+        # self.set_lock(True)  # bzhang
         assert len(self._counter) > 0
         total_num = len(self._counter)
         with open(file_name, mode='w', encoding='utf-8') as f:
@@ -37,7 +40,7 @@ class VocabDict(object):
         # print("exword: ", file_name)
         assert len(self._counter) == 0
         assert len(self._id2str) == 0
-        assert self.is_locked() is False
+        assert not self.is_locked()
         for (k, v) in default_keys_ids:
             v2 = self.add_key_into_dict(k)
             assert v == v2
@@ -98,8 +101,7 @@ class VocabDict(object):
         return self._id2str[i]
 
     def add_key_into_dict(self, k):
-        assert self.is_locked() is False
+        assert not self.is_locked()
         assert -1 == self._get_id(k)
         self._str2id[k] = self._size()
         return self._get_id(k)
-

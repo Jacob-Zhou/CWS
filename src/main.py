@@ -20,7 +20,7 @@ if __name__ == '__main__':
     conf = Configurable(args.config_file, extra_args)
     # cudaNo = conf.cudaNo
     # os.environ["CUDA_VISIBLE_DEVICES"] = cudaNo
- 
+
     all_seeds = [args.random_seed]
     random.seed(all_seeds[0])
     for i in range(3):
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     np.random.seed(all_seeds[1])
     torch.cuda.manual_seed(all_seeds[2])
     torch.manual_seed(all_seeds[3])
-    print('random_seeds = ', all_seeds, flush=True)
+    print('random_seeds = ', all_seeds)
 
     torch.set_num_threads(conf.cpu_thread_num)  # run with CPU, then use multi-thread? What does this mean?
 

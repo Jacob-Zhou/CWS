@@ -5,10 +5,10 @@ import sys
 
 '''
 Zhenghua 2019.1.17
-input: 
-    one sentence each line, words are separated by whitespaces 
-output: 
-    one word a line: length word frequency 
+input:
+    one sentence each line, words are separated by whitespaces
+output:
+    one word a line: length word frequency
 '''
 
 
@@ -19,7 +19,7 @@ def collect(inf, counter):
             for token in tokens:
                 counter[token] += 1
             if i % 10000 == 0:
-                print(i, ' ', end='', flush=True)
+                print(i, ' ', end='')
 
 
 def output_dict(outf, counter):

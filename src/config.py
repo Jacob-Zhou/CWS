@@ -12,7 +12,8 @@ class Configurable(object):
         config = ConfigParser()
         config.read(config_file)
         if extra_args:
-            extra_args = dict([ (k[2:], v) for k, v in zip(extra_args[0::2], extra_args[1::2])])
+            extra_args = dict([(k[2:], v) for k, v in zip(
+                extra_args[0::2], extra_args[1::2])])
         for section in config.sections():
             for k, v in config.items(section):
                 if k in extra_args:
@@ -49,7 +50,8 @@ class Configurable(object):
     # if setting this to 0, arc prob = max prob among all labels
     @property
     def max_label_prob_as_arc_prob_when_decode(self):
-        ret = self._conf.getint('Run', 'max_label_prob_as_arc_prob_when_decode') != 0
+        ret = self._conf.getint(
+            'Run', 'max_label_prob_as_arc_prob_when_decode') != 0
         if ret:
             assert self.use_labeled_crf_loss
         return ret
@@ -86,7 +88,8 @@ class Configurable(object):
 
     @property
     def max_bucket_num(self):
-        return self._conf.getint('Run', 'max_bucket_num')  # negative means not using bucket
+        # negative means not using bucket
+        return self._conf.getint('Run', 'max_bucket_num')
 
     @property
     def is_train(self):
@@ -113,14 +116,6 @@ class Configurable(object):
         return self._conf.get('Run', 'model_dir')
 
     @property
-    def ext_word_emb_full_path(self):
-        return self._conf.get('Run', 'ext_word_emb_full_path')
-
-    @property
-    def ext_word_dict_full_path(self):
-        return self._conf.get('Run', 'ext_word_dict_full_path')
-
-    @property
     def inst_num_max(self):
         return self._conf.getint('Run', 'inst_num_max')
 
@@ -134,7 +129,8 @@ class Configurable(object):
 
     @property
     def train_files(self):
-        return self._conf.get('Train', 'train_files')    # use ; to split multiple training datasets
+        # use ; to split multiple training datasets
+        return self._conf.get('Train', 'train_files')
 
     @property
     def dev_files(self):
@@ -169,12 +165,8 @@ class Configurable(object):
         return self._conf.getint('Network', 'lstm_layer_num')
 
     @property
-    def word_emb_dim(self):
-        return self._conf.getint('Network', 'word_emb_dim')
-
-    @property
-    def tag_emb_dim(self):
-        return self._conf.getint('Network', 'tag_emb_dim')
+    def char_emb_dim(self):
+        return self._conf.getint('Network', 'char_emb_dim')
 
     @property
     def emb_dropout_ratio(self):
@@ -183,6 +175,10 @@ class Configurable(object):
     @property
     def lstm_hidden_dim(self):
         return self._conf.getint('Network', 'lstm_hidden_dim')
+
+    @property
+    def lstm_dropout_ratio(self):
+        return self._conf.getfloat('Network', 'lstm_dropout_ratio')
 
     @property
     def lstm_input_dropout_ratio(self):
@@ -235,4 +231,3 @@ class Configurable(object):
     @property
     def clip(self):
         return self._conf.getfloat('Optimizer', 'clip')
-
