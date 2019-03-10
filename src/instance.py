@@ -74,11 +74,14 @@ class Instance(object):
         self.bichars_s = [''] * n
         self.labels_s = [''] * n
         self.labels_s_predict = [''] * n
-        self.chars_i = np.array([-1] * n, dtype=data_type_int)
-        self.bichars_i = np.array([-1] * n, dtype=data_type_int)
-        self.labels_i = np.array([-1] * n, dtype=data_type_int)
-        self.labels_i_predict = np.array([-1] * n, dtype=data_type_int)
+        self.chars_i = torch.zeros(n).long()
+        self.bichars_i = torch.zeros(n).long()
+        self.labels_i = torch.zeros(n).long()
+        self.labels_i_predict = torch.zeros(n).long()
         self.decompose_sent(lines)
+
+    def __len__(self):
+        return len(self.chars_s)
 
     def size(self):
         return len(self.chars_s)
@@ -112,5 +115,3 @@ class Instance(object):
 
     def evaluate(self):
         return Decoder().evaluate(self.labels_s_predict, self.labels_s)
-
-

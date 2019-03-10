@@ -15,13 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from collections import Counter
-import sys
 import math
+import sys
+from collections import Counter
+
 import numpy as np
 
 
@@ -40,9 +39,11 @@ class Bucketing(object):
         """"""
         # Error checking
         if len(len_cntr) < assumed_bucket_num:
-            raise ValueError('Trying to sort %d data points into %d buckets' % (len(len_cntr), assumed_bucket_num))
+            raise ValueError('Trying to sort %d data points into %d buckets' % (
+                len(len_cntr), assumed_bucket_num))
 
-        uniq_lengths = sorted(len_cntr.keys(), reverse=True) # from large to small
+        # from large to small
+        uniq_lengths = sorted(len_cntr.keys(), reverse=True)
         total_token_num = 0
         for length in uniq_lengths:
             total_token_num += length * len_cntr[length]

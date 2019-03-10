@@ -5,9 +5,10 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pad_sequence
 
-from common import (data_type, get_time_str, padding_id, padding_str,
-                    unknown_id, unknown_str)
+from common import (data_type, get_time_str, padding_idx, padding_str,
+                    unknown_idx, unknown_str)
 from dataset import Dataset
 from optimizer import Optimizer
 from parser_model import ParserModel
@@ -32,7 +33,6 @@ class Parser(object):
         self._train_datasets = []
         self._dev_datasets = []
         self._test_datasets = []
-        self._word_dict = VocabDict('words')
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
@@ -43,7 +43,8 @@ class Parser(object):
 
     def run(self):
         if self._conf.is_train:
-            self.open_and_load_datasets(self._conf.train_files, self._train_datasets,
+            self.open_and_load_datasets(self._conf.train_files,
+                                        self._train_datasets,
                                         inst_num_max=self._conf.inst_num_max)
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
@@ -51,28 +52,29 @@ class Parser(object):
                     self.create_dictionaries(dataset, self._label_dict)
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
-                self._parser_model.init_models(self._char_dict.size(
-                ), self._bichar_dict.size(), self._label_dict.size())
+                self._parser_model.init_models(self._char_dict.size(),
+                                               self._bichar_dict.size(),
+                                               self._label_dict.size())
                 self._parser_model.reset_parameters()
                 self._parser_model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
-        self._parser_model.init_models(self._char_dict.size(
-        ), self._bichar_dict.size(), self._label_dict.size())
+        self._parser_model.init_models(self._char_dict.size(),
+                                       self._bichar_dict.size(),
+                                       self._label_dict.size())
 
         if self._conf.is_train:
-            self.open_and_load_datasets(self._conf.dev_files, self._dev_datasets,
+            self.open_and_load_datasets(self._conf.dev_files,
+                                        self._dev_datasets,
                                         inst_num_max=self._conf.inst_num_max)
 
-        self.open_and_load_datasets(self._conf.test_files, self._test_datasets,
+        self.open_and_load_datasets(self._conf.test_files,
+                                    self._test_datasets,
                                     inst_num_max=self._conf.inst_num_max)
 
-        print(
-            'numeralizing [and pad if use-bucket] all instances in all datasets')
+        print('numeralizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + self._test_datasets:
             self.numeralize_all_instances(dataset, self._label_dict)
-            if self._use_bucket:
-                self.pad_all_inst(dataset)
 
         if self._conf.is_train:
             self._parser_model.load_model(self._conf.model_dir, 0)
@@ -83,6 +85,7 @@ class Parser(object):
         if self._use_cuda:
             # self._parser_model.cuda()
             self._parser_model.to(self._cuda_device)
+        print(self._parser_model)
 
         if self._conf.is_train:
             assert self._optimizer is None
@@ -102,23 +105,22 @@ class Parser(object):
     def train(self):
         update_step_cnt, eval_cnt, best_eval_cnt, best_accuracy = 0, 0, 0, 0.
         self._eval_metrics.clear()
-        self.set_training_mode(is_training=True)
+        self.set_training_mode(training=True)
         while True:
-            inst_num = self.train_or_eval_one_batch(
-                self._train_datasets[0], is_training=True)
+            inst_num = self.train_or_eval_one_batch(self._train_datasets[0],
+                                                    training=True)
             assert inst_num > 0
             update_step_cnt += 1
             print('.', end='')
-
             if 0 == update_step_cnt % self._conf.eval_every_update_step_num:
                 eval_cnt += 1
-                self._eval_metrics.compute_and_output(
-                    self._train_datasets[0], eval_cnt)
+                self._eval_metrics.compute_and_output(self._train_datasets[0],
+                                                      eval_cnt)
                 self._eval_metrics.clear()
 
                 self.evaluate(self._dev_datasets[0])
-                self._eval_metrics.compute_and_output(
-                    self._dev_datasets[0], eval_cnt)
+                self._eval_metrics.compute_and_output(self._dev_datasets[0],
+                                                      eval_cnt)
                 current_fmeasure = self._eval_metrics.fscore
                 self._eval_metrics.clear()
 
@@ -126,8 +128,8 @@ class Parser(object):
                     if eval_cnt > self._conf.save_model_after_eval_num:
                         if best_eval_cnt > self._conf.save_model_after_eval_num:
                             self.del_model(self._conf.model_dir, best_eval_cnt)
-                        self._parser_model.save_model(
-                            self._conf.model_dir, eval_cnt)
+                        self._parser_model.save_model(self._conf.model_dir,
+                                                      eval_cnt)
                         self.evaluate(
                             self._test_datasets[0], output_file_name=None)
                         self._eval_metrics.compute_and_output(
@@ -137,33 +139,29 @@ class Parser(object):
                     best_eval_cnt = eval_cnt
                     best_accuracy = current_fmeasure
 
-                self.set_training_mode(is_training=True)
+                self.set_training_mode(training=True)
 
             if (best_eval_cnt + self._conf.train_stop_after_eval_num_no_improve < eval_cnt) or \
                     (eval_cnt > self._conf.train_max_eval_num):
                 break
 
-    def train_or_eval_one_batch(self, dataset, is_training):
-        one_batch, total_word_num, max_len = dataset.get_one_batch(
-            rewind=is_training)
-        # NOTICE: total_word_num does not include w_0
+    def train_or_eval_one_batch(self, dataset, training):
+        one_batch = dataset.get_one_batch(rewind=training)
         inst_num = len(one_batch)
         if 0 == inst_num:
             return 0
 
-        chars, bichars, gold_labels, lstm_masks = self.compose_batch_data(
-            one_batch, max_len)
-
+        chars, bichars, labels = self.compose_batch_data(one_batch)
+        mask = chars.ne(padding_idx)
         time1 = time.time()
         mlp_out = self._parser_model(chars, bichars)
         time2 = time.time()
 
-        label_loss = self._parser_model.get_loss(
-            mlp_out, gold_labels) / total_word_num
+        label_loss = self._parser_model.get_loss(mlp_out, labels, mask)
         self._eval_metrics.loss_accumulated += label_loss.item()
         time3 = time.time()
 
-        if is_training:
+        if training:
             label_loss.backward()
             nn.utils.clip_grad_norm_(self._parser_model.parameters(),
                                      max_norm=self._conf.clip)
@@ -180,26 +178,27 @@ class Parser(object):
         self._eval_metrics.decode_time += time5 - time4
         return inst_num
 
+    @torch.no_grad()
     def evaluate(self, dataset, output_file_name=None):
-        with torch.no_grad():
-            self.set_training_mode(is_training=False)
-            while True:
-                inst_num = self.train_or_eval_one_batch(
-                    dataset, is_training=False)
-                print('.', end='')
-                if 0 == inst_num:
-                    break
+        self.set_training_mode(training=False)
+        while True:
+            inst_num = self.train_or_eval_one_batch(dataset, training=False)
+            print('.', end='')
+            if 0 == inst_num:
+                break
 
-            if output_file_name is not None:
-                with open(output_file_name, 'w', encoding='utf-8') as out_file:
-                    all_inst = dataset.all_inst
-                    for inst in all_inst:
-                        inst.write(out_file)
+        if output_file_name is not None:
+            with open(output_file_name, 'w', encoding='utf-8') as out_file:
+                all_inst = dataset.all_inst
+                for inst in all_inst:
+                    inst.write(out_file)
 
     ''' 2018.11.3 by Zhenghua
-    I found that using multi-thread for non-viterbi (local) decoding is actually much slower than single-thread (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
+    I found that using multi-thread for non-viterbi (local) decoding is actually
+    much slower than single-thread (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
     NOTICE:
-        multi-process: CAN NOT Parser.set_predict_result(inst, head_pred, label_pred, label_dict), this will not change inst of the invoker
+        multi-process: CAN NOT Parser.set_predict_result(inst, head_pred, label_pred, label_dict),
+        this will not change inst of the invoker
     '''
 
     def decode(self, scores, one_batch, label_dict):
@@ -246,10 +245,9 @@ class Parser(object):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
-                             cutoff_freq=self._conf.word_freq_cutoff,
-                             default_keys_ids=((padding_str, padding_id), (unknown_str, unknown_id)))
+                             default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
         self._bichar_dict.load(path + self._bichar_dict.name,
-                               default_keys_ids=((padding_str, padding_id), (unknown_str, unknown_id)))
+                               default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
         self._label_dict.load(
             path + self._label_dict.name, default_keys_ids=())
         print("load  dict done")
@@ -278,8 +276,9 @@ class Parser(object):
         names = file_names.strip().split(':')
         assert len(names) > 0
         for name in names:
-            datasets.append(Dataset(name, max_bucket_num=self._conf.max_bucket_num,
-                                    word_num_one_batch=self._conf.word_num_one_batch,
+            datasets.append(Dataset(file_name=name,
+                                    max_bucket_num=self._conf.max_bucket_num,
+                                    char_num_one_batch=self._conf.char_num_one_batch,
                                     sent_num_one_batch=self._conf.sent_num_one_batch,
                                     inst_num_max=inst_num_max,
                                     max_len=self._conf.sent_max_len))
@@ -298,64 +297,22 @@ class Parser(object):
         eval_metrics.pred_num += pred_num
         eval_metrics.correct_num += correct_num
 
-    def set_training_mode(self, is_training=True):
-        self._parser_model.train(mode=is_training)
+    def set_training_mode(self, training=True):
+        self._parser_model.train(mode=training)
 
     def zero_grad(self):
         self._parser_model.zero_grad()
 
-    def pad_all_inst(self, dataset):
-        for (max_len, inst_num_one_batch, this_bucket) in dataset.all_buckets:
-            for inst in this_bucket:
-                inst.chars_i, inst.bichars_i, inst.labels_i, inst.lstm_mask = \
-                    self.pad_one_inst(inst, max_len)
-
-    def pad_one_inst(self, inst, max_sz):
-        sz = inst.size()
-        assert len(inst.chars_i) == sz
-        assert max_sz >= sz
-        pad_sz = (0, max_sz - sz)
-        '''
-        return torch.from_numpy(np.pad(inst.chars_i, pad_sz, 'constant', constant_values=padding_id)), \
-            torch.from_numpy(np.pad(inst.bichars_i, pad_sz, 'constant', constant_values=padding_id)), \
-            torch.from_numpy(np.pad(inst.labels_i, pad_sz, 'constant', constant_values=ignore_id_head_or_label)), \
-            torch.from_numpy(np.pad(np.ones(sz, dtype=data_type), pad_sz, 'constant', constant_values=padding_id))
-        '''
-        return np.pad(inst.chars_i, pad_sz, 'constant', constant_values=0), \
-            np.pad(inst.bichars_i, pad_sz, 'constant', constant_values=0), \
-            np.pad(inst.labels_i, pad_sz, 'constant', constant_values=0), \
-            np.pad(np.ones(sz, dtype=data_type), pad_sz,
-                   'constant', constant_values=0)
-
-    def compose_batch_data(self, one_batch, max_len):
-        chars, bichars, labels, lstm_masks = [], [], [], []
-        for inst in one_batch:
-            if self._use_bucket:
-                chars.append(inst.chars_i)
-                bichars.append(inst.bichars_i)
-                labels.append(inst.labels_i)
-                lstm_masks.append(inst.lstm_mask)
-            else:
-                ret = self.pad_one_inst(inst, max_len)
-                chars.append(ret[0])
-                bichars.append(ret[1])
-                labels.append(ret[2])
-                lstm_masks.append(ret[3])
-        # dim: batch max-len
-        chars, bichars, labels, lstm_masks = \
-            torch.from_numpy(np.stack(chars, axis=0)),\
-            torch.from_numpy(np.stack(bichars, axis=0)), \
-            torch.from_numpy(np.stack(labels, axis=0)),\
-            torch.from_numpy(np.stack(lstm_masks, axis=0))
-
+    def compose_batch_data(self, one_batch):
+        chars = pad_sequence([inst.chars_i for inst in one_batch], True)
+        bichars = pad_sequence([inst.bichars_i for inst in one_batch], True)
+        labels = pad_sequence([inst.labels_i for inst in one_batch], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
-        if self._use_cuda:
-            chars, bichars, labels, lstm_masks = \
-                chars.cuda(self._cuda_device),\
-                bichars.cuda(self._cuda_device), \
-                labels.cuda(self._cuda_device),\
-                lstm_masks.cuda(self._cuda_device)
-        return chars, bichars, labels, lstm_masks
+        if torch.cuda.is_available():
+            chars = chars.cuda()
+            bichars = bichars.cuda()
+            labels = labels.cuda()
+        return chars, bichars, labels
 
 
 class Metric(object):

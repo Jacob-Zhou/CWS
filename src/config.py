@@ -83,8 +83,8 @@ class Configurable(object):
         return self._conf.getint('Run', 'sent_num_one_batch')
 
     @property
-    def word_num_one_batch(self):
-        return self._conf.getint('Run', 'word_num_one_batch')
+    def char_num_one_batch(self):
+        return self._conf.getint('Run', 'char_num_one_batch')
 
     @property
     def max_bucket_num(self):
@@ -106,10 +106,6 @@ class Configurable(object):
     @property
     def dict_dir(self):
         return self._conf.get('Run', 'dict_dir')
-
-    @property
-    def word_freq_cutoff(self):
-        return self._conf.getint('Run', 'word_freq_cutoff')
 
     @property
     def model_dir(self):
@@ -169,40 +165,24 @@ class Configurable(object):
         return self._conf.getint('Network', 'char_emb_dim')
 
     @property
-    def emb_dropout_ratio(self):
-        return self._conf.getfloat('Network', 'emb_dropout_ratio')
+    def emb_dropout(self):
+        return self._conf.getfloat('Network', 'emb_dropout')
 
     @property
     def lstm_hidden_dim(self):
         return self._conf.getint('Network', 'lstm_hidden_dim')
 
     @property
-    def lstm_dropout_ratio(self):
-        return self._conf.getfloat('Network', 'lstm_dropout_ratio')
+    def lstm_dropout(self):
+        return self._conf.getfloat('Network', 'lstm_dropout')
 
     @property
-    def lstm_input_dropout_ratio(self):
-        return self._conf.getfloat('Network', 'lstm_input_dropout_ratio')
+    def lstm_input_dropout(self):
+        return self._conf.getfloat('Network', 'lstm_input_dropout')
 
     @property
-    def lstm_hidden_dropout_ratio_for_next_timestamp(self):
-        return self._conf.getfloat('Network', 'lstm_hidden_dropout_ratio_for_next_timestamp')
-
-    @property
-    def mlp_output_dim_arc(self):
-        return self._conf.getint('Network', 'mlp_output_dim_arc')
-
-    @property
-    def mlp_output_dim_rel(self):
-        return self._conf.getint('Network', 'mlp_output_dim_rel')
-
-    @property
-    def mlp_input_dropout_ratio(self):
-        return self._conf.getfloat('Network', 'mlp_input_dropout_ratio')
-
-    @property
-    def mlp_output_dropout_ratio(self):
-        return self._conf.getfloat('Network', 'mlp_output_dropout_ratio')
+    def lstm_hidden_dropout_for_next_timestamp(self):
+        return self._conf.getfloat('Network', 'lstm_hidden_dropout_for_next_timestamp')
 
     @property
     def learning_rate(self):

@@ -11,8 +11,11 @@ class VocabDict(object):
         self._counter = Counter()
         self._str2id = {}
         self._id2str = []
-        self._unknown_id = -1
+        self._unknown_index = -1
         self._is_locked = False
+
+    def __len__(self):
+        return len(self._str2id)
 
     @property
     def name(self):
@@ -37,7 +40,6 @@ class VocabDict(object):
     #  ------
 
     def load(self, file_name, cutoff_freq=0, default_keys_ids=()):
-        # print("exword: ", file_name)
         assert len(self._counter) == 0
         assert len(self._id2str) == 0
         assert not self.is_locked()
@@ -62,9 +64,9 @@ class VocabDict(object):
         for (k, v) in self._str2id.items():
             assert (v >= 0) and (v < self._size())
             self._id2str[v] = k
-        self._unknown_id = self._get_id(unknown_str)
+        self._unknown_index = self._get_id(unknown_str)
         self.set_lock(True)
-        print('Loading dict %s done: %d keys; unknown-id=%d' % (self.name, self.size(), self._unknown_id),
+        print('Loading dict %s done: %d keys; unknown-id=%d' % (self.name, self.size(), self._unknown_index),
               flush=True)
 
     def _size(self):
@@ -91,7 +93,7 @@ class VocabDict(object):
         assert self.is_locked() is True
         i = self._get_id(key)
         if -1 == i:
-            i = self._unknown_id
+            i = self._unknown_index
             # print('%s, unk: %s %d' % (self.name, key, i))
         return i
 
