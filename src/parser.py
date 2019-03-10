@@ -212,16 +212,14 @@ class Parser(object):
             Parser.compute_accuracy_one_inst(inst, self._eval_metrics)
 
     def create_dictionaries(self, dataset, label_dict):
-        all_inst = dataset.all_inst
-        for inst in all_inst:
-            for i in range(1, inst.size()):
+        for inst in dataset.all_inst:
+            for i in range(len(inst)):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
                 self._label_dict.add_key_into_counter(inst.labels_s[i])
 
     def numeralize_all_instances(self, dataset, label_dict):
-        all_inst = dataset.all_inst
-        for inst in all_inst:
+        for inst in dataset.all_inst:
             inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                          for i in inst.chars_s])
             inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
@@ -273,7 +271,6 @@ class Parser(object):
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
-        # assert arc_pred.size(0) == inst.size()
         inst.labels_i_predict = pred
         inst.labels_s_predict = [label_dict.get_str(i) for i in pred]
 
