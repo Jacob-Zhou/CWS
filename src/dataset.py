@@ -60,7 +60,7 @@ class Dataset(object):
             assert (self._char_num_one_batch > 0)
             len_counter = Counter()
             for inst in self.all_inst:
-                len_counter[inst.size()] += 1
+                len_counter[len(inst)] += 1
 
             # Automatically decide the bucket num according to the data
             self._bucket_num = int(min(max_bucket_num, math.ceil(len(len_counter)/1.5),
@@ -75,7 +75,7 @@ class Dataset(object):
             buckets = [None] * self._bucket_num
             # Can NOT use [[]] * self._bucket_num, shallow copy issue!
             for inst in self.all_inst:
-                b_idx = len2bucket_idx[inst.size()]
+                b_idx = len2bucket_idx[len(inst)]
                 if buckets[b_idx] is None:
                     buckets[b_idx] = [inst]
                 else:
@@ -145,7 +145,7 @@ class Dataset(object):
         self.one_batch = this_bucket[self._idx_to_read_next_batch:idx_next_batch]
         assert len(self.one_batch) > 0
         for inst in self.one_batch:
-            self.word_num_accum_so_far += inst.size()
+            self.word_num_accum_so_far += len(inst)
         if idx_next_batch >= inst_num:
             assert idx_next_batch == inst_num
             self._bucket_idx_to_read_next_batch += 1
