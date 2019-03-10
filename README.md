@@ -1,0 +1,3 @@
+# WS
+
+Word Segmentation model
