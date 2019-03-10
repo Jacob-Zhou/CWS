@@ -4,9 +4,8 @@ is_train = 1
 device-x = cpu
 device = cuda:0
 cpu_thread_num = 8
-dict_dir = ../save/
-word_freq_cutoff = 1
-model_dir = ../save/
+dict_dir = ../exp/
+model_dir = ../exp/
 inst_num_max = -1
 sent_max_len = 500
 max_bucket_num = 0
@@ -37,7 +36,7 @@ lstm_input_dropout = 0.33
 lstm_hidden_dropout_for_next_timestamp = 0.33
 
 [Optimizer]
-learning_rate = 2e-3
+learning_rate = 1e-3
 decay = .75
 decay_steps = 5000
 beta_1 = .9

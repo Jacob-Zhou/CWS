@@ -5,66 +5,6 @@ import numpy as np
 from common import *
 
 
-class Decoder(object):
-
-    def __init__(self):
-        inf = float('-inf')
-        T = [[0., inf, inf, 0.],
-             [inf, 0., 0., inf],
-             [inf, inf, 0., inf],
-             [0., inf, inf, 0.],
-             [0., inf, inf, 0.]]
-        self.gram = torch.tensor(T)
-
-    def is_continue_label(self, label, startlabel, distance):
-        if distance == 0:
-            return True
-        if startlabel[0] == 'S' or self.is_start_label(label) or label[2:] != startlabel[2:]:
-            return False
-        return True
-
-    def is_start_label(self, label):
-        return (label[0] == 'B' or label[0] == 'S')
-
-    def evaluate(self, predict, target):
-        preds, golds = [], []
-        length = len(predict)
-
-        for idx in range(length):
-            if self.is_start_label(predict[idx]):
-                s = ''
-                for idy in range(idx, length):
-                    if not self.is_continue_label(predict[idy], predict[idx], idy - idx):
-                        endpos = idy - 1
-                        s += target[idy][0]
-                        break
-                    endpos = idy
-                    s += predict[idy][0]
-                ss = '[' + str(idx) + ',' + str(endpos) + ']'
-                preds.append(s + predict[idx][1:] + ss)
-
-        for idx in range(length):
-            if self.is_start_label(target[idx]):
-                s = ''
-                for idy in range(idx, length):
-                    if not self.is_continue_label(target[idy], target[idx], idy - idx):
-                        endpos = idy - 1
-                        s += target[idy][0]
-                        break
-                    endpos = idy
-                    s += target[idy][0]
-                ss = '[' + str(idx) + ',' + str(endpos) + ']'
-                golds.append(s + target[idx][1:] + ss)
-        gold_num = len(golds)
-        pred_num = len(preds)
-        correct_num = 0
-        for pred in preds:
-            if pred in golds:
-                correct_num += 1
-
-        return gold_num, pred_num, correct_num
-
-
 class Instance(object):
 
     def __init__(self, id, lines):
@@ -110,8 +50,32 @@ class Instance(object):
         for (i, line) in enumerate(lines):
             tokens = line.split()
             assert(len(tokens) == 3)
-            self.chars_s[i], self.bichars_s[i], self.labels_s[i] = \
-                tokens[0], tokens[1], tokens[2]
+            self.chars_s[i], self.bichars_s[i], self.labels_s[i] = tokens[0], tokens[1], tokens[2]
 
     def evaluate(self):
-        return Decoder().evaluate(self.labels_s_predict, self.labels_s)
+        preds = self.get_spans(self.labels_s_predict)
+        golds = self.get_spans(self.labels_s)
+
+        gold_num = len(golds)
+        pred_num = len(preds)
+        correct_num = len(golds & preds)
+
+        return gold_num, pred_num, correct_num
+
+    @classmethod
+    def get_spans(cls, labels):
+        # record span of each words and split points
+        spans, splits = set(), set()
+
+        for i, label in enumerate(labels):
+            if label.startswith('B'):
+                splits.add(i)
+            elif label.startswith('E'):
+                splits.add(i + 1)
+            elif label.startswith('S'):
+                splits.update({i, i + 1})
+        splits = sorted(splits | {0, len(labels)})
+        for i, j in zip(splits[:-1], splits[1:]):
+            spans.add((i, j))
+
+        return spans

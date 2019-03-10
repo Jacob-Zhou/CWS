@@ -79,8 +79,8 @@ class Parser(object):
         if self._conf.is_train:
             self._parser_model.load_model(self._conf.model_dir, 0)
         else:
-            self._parser_model.load_model(
-                self._conf.model_dir, self._conf.model_eval_num)
+            self._parser_model.load_model(self._conf.model_dir,
+                                          self._conf.model_eval_num)
 
         if self._use_cuda:
             # self._parser_model.cuda()
@@ -89,17 +89,17 @@ class Parser(object):
 
         if self._conf.is_train:
             assert self._optimizer is None
-            self._optimizer = Optimizer(
-                [param for param in self._parser_model.parameters() if param.requires_grad], self._conf)
+            self._optimizer = Optimizer(self._parser_model.parameters(),
+                                        self._conf)
             self.train()
             return
 
         assert self._conf.is_test
         for dataset in self._test_datasets:
-            self.evaluate(
-                dataset, output_file_name=dataset.file_name_short + '.out')
-            self._eval_metrics.compute_and_output(
-                self._test_datasets[0], self._conf.model_eval_num)
+            self.evaluate(dataset=dataset,
+                          output_file_name=dataset.file_name_short + '.out')
+            self._eval_metrics.compute_and_output(self._test_datasets[0],
+                                                  self._conf.model_eval_num)
             self._eval_metrics.clear()
 
     def train(self):
@@ -130,10 +130,10 @@ class Parser(object):
                             self.del_model(self._conf.model_dir, best_eval_cnt)
                         self._parser_model.save_model(self._conf.model_dir,
                                                       eval_cnt)
-                        self.evaluate(
-                            self._test_datasets[0], output_file_name=None)
-                        self._eval_metrics.compute_and_output(
-                            self._test_datasets[0], eval_cnt)
+                        self.evaluate(dataset=self._test_datasets[0],
+                                      output_file_name=None)
+                        self._eval_metrics.compute_and_output(self._test_datasets[0],
+                                                              eval_cnt)
                         self._eval_metrics.clear()
 
                     best_eval_cnt = eval_cnt
@@ -166,10 +166,9 @@ class Parser(object):
             nn.utils.clip_grad_norm_(self._parser_model.parameters(),
                                      max_norm=self._conf.clip)
             self._optimizer.step()
-            self.zero_grad()
         time4 = time.time()
 
-        self.decode(mlp_out, one_batch, self._label_dict)
+        self.decode(mlp_out, one_batch, mask)
         time5 = time.time()
 
         self._eval_metrics.forward_time += time2 - time1
@@ -201,15 +200,15 @@ class Parser(object):
         this will not change inst of the invoker
     '''
 
-    def decode(self, scores, one_batch, label_dict):
+    def decode(self, scores, one_batch, mask):
         inst_num = scores.size(0)
+        inst_lengths = [len(inst) for inst in one_batch]
         assert inst_num == len(one_batch)
-        ret = [score[:inst.size()]
-               for (score, inst) in zip(scores.argmax(-1), one_batch)]
+        ret = torch.split(scores.argmax(-1)[mask], inst_lengths)
 
-        self._eval_metrics.sent_num += len(one_batch)
+        self._eval_metrics.sent_num += inst_num
         for (inst, pred) in zip(one_batch, ret):
-            Parser.set_predict_result(inst, pred, label_dict)
+            Parser.set_predict_result(inst, pred, self._label_dict)
             Parser.compute_accuracy_one_inst(inst, self._eval_metrics)
 
     def create_dictionaries(self, dataset, label_dict):
@@ -219,19 +218,6 @@ class Parser(object):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
                 self._label_dict.add_key_into_counter(inst.labels_s[i])
-
-    @staticmethod
-    def get_candidate_heads(length, gold_arcs):
-        candidate_heads = np.array(
-            [0] * length * length, dtype=data_type_int32).reshape(length, length)
-        for m in range(1, length):
-            h = gold_arcs[m]
-            if h < 0:
-                for i in range(length):
-                    candidate_heads[m][i] = 1
-            else:
-                candidate_heads[m][h] = 1
-        return candidate_heads
 
     def numeralize_all_instances(self, dataset, label_dict):
         all_inst = dataset.all_inst
@@ -248,8 +234,8 @@ class Parser(object):
                              default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
         self._bichar_dict.load(path + self._bichar_dict.name,
                                default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
-        self._label_dict.load(
-            path + self._label_dict.name, default_keys_ids=())
+        self._label_dict.load(path + self._label_dict.name,
+                              default_keys_ids=())
         print("load  dict done")
 
     def save_dictionaries(self, path):
@@ -286,9 +272,8 @@ class Parser(object):
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
         # assert arc_pred.size(0) == inst.size()
-        for i in range(inst.size()):
-            inst.labels_i_predict[i] = pred[i]
-            inst.labels_s_predict[i] = label_dict.get_str(pred[i])
+        inst.labels_i_predict = pred
+        inst.labels_s_predict = [label_dict.get_str(i) for i in pred]
 
     @staticmethod
     def compute_accuracy_one_inst(inst, eval_metrics):
@@ -298,10 +283,10 @@ class Parser(object):
         eval_metrics.correct_num += correct_num
 
     def set_training_mode(self, training=True):
-        self._parser_model.train(mode=training)
-
-    def zero_grad(self):
-        self._parser_model.zero_grad()
+        if training:
+            self._parser_model.train()
+        else:
+            self._parser_model.eval()
 
     def compose_batch_data(self, one_batch):
         chars = pad_sequence([inst.chars_i for inst in one_batch], True)
@@ -343,7 +328,7 @@ class Metric(object):
         self.time_gap = float(time.time() - self.start_time)
         print(
             "\n%30s(%5d): loss=%.3f precision=%.3f, recall=%.3f, fscore=%.3f, %d sentences, time=%.3f (%.1f %.1f %.1f %.1f) [%s]" %
-            (dataset.file_name_short, eval_cnt, self.loss_accumulated, self.precision, self.recall, self.fscore,
-             self.sent_num, self.time_gap, self.forward_time, self.loss_time,
-             self.backward_time, self.decode_time, get_time_str())
+            (dataset.file_name_short, eval_cnt, self.loss_accumulated, self.precision, self.recall, self.fscore, self.sent_num,
+             self.time_gap, self.forward_time, self.loss_time, self.backward_time, self.decode_time,
+             get_time_str())
         )
