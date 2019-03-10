@@ -222,10 +222,12 @@ class Parser(object):
     def numeralize_all_instances(self, dataset, label_dict):
         all_inst = dataset.all_inst
         for inst in all_inst:
-            for i in range(0, inst.size()):
-                inst.chars_i[i] = self._char_dict.get_id(inst.chars_s[i])
-                inst.bichars_i[i] = self._bichar_dict.get_id(inst.bichars_s[i])
-                inst.labels_i[i] = self._label_dict.get_id(inst.labels_s[i])
+            inst.chars_i = torch.tensor([self._char_dict.get_id(i)
+                                         for i in inst.chars_s])
+            inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
+                                           for i in inst.bichars_s])
+            inst.labels_i = torch.tensor([self._label_dict.get_id(i)
+                                          for i in inst.labels_s])
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
