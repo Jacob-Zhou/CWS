@@ -1,3 +1,3 @@
-# WS
+# CWS
 
-Word Segmentation model
+Chinese word segmentation model
