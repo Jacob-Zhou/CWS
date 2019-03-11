@@ -2,7 +2,6 @@ import os
 import shutil
 import time
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence

@@ -1,8 +1,6 @@
 from collections import Counter
 from collections.abc import Iterable
 
-import numpy as np
-
 from common import *
 
 

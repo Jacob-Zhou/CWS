@@ -1,7 +1,5 @@
 import re
 
-import numpy as np
-
 from common import *
 
 
@@ -34,7 +32,7 @@ class Instance(object):
         n = len(chars_s)
         assert n == len(bichars_s) == len(labels_s)
         lines = []
-        for i in np.arange(n):
+        for i in range(n):
             lines.append('%s %s %s\n' %
                          (chars_s[i], bichars_s[i], labels_s[i]))
         return lines
