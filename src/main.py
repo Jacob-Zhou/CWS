@@ -1,6 +1,5 @@
 import argparse
 import os
-import random
 import sys
 import time
 from parser import Parser
@@ -11,12 +10,13 @@ import torch
 from config import Configurable
 
 if __name__ == '__main__':
-    default_seed = int(time.time())
     argparser = argparse.ArgumentParser()
-    argparser.add_argument(
-        '--exp_des', default='description-of-this-experiment-no-whitespace')
-    argparser.add_argument('--config_file', default='config.txt')
-    argparser.add_argument('--random_seed', type=int, default=default_seed)
+    argparser.add_argument('--exp_des',
+                           default='description of this experiment')
+    argparser.add_argument('--config_file',
+                           default='config.txt')
+    argparser.add_argument('--seed', type=int,
+                           default=1)
     # argparser.add_argument('--thread', default=4, type=int, help='thread num')
 
     args, extra_args = argparser.parse_known_args()
@@ -24,14 +24,9 @@ if __name__ == '__main__':
     # cudaNo = conf.cudaNo
     # os.environ["CUDA_VISIBLE_DEVICES"] = cudaNo
 
-    all_seeds = [args.random_seed]
-    random.seed(all_seeds[0])
-    for i in range(3):
-        all_seeds.append(random.randint(1, 987654321))
-    np.random.seed(all_seeds[1])
-    torch.cuda.manual_seed(all_seeds[2])
-    torch.manual_seed(all_seeds[3])
-    print('random_seeds = ', all_seeds)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    print('random_seeds = ', args.seed)
 
     # run with CPU, then use multi-thread? What does this mean?
     torch.set_num_threads(conf.cpu_thread_num)
