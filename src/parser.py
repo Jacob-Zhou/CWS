@@ -208,7 +208,7 @@ class Parser(object):
 
         self._eval_metrics.sent_num += inst_num
         for (inst, pred) in zip(one_batch, ret):
-            Parser.set_predict_result(inst, pred, self._label_dict)
+            Parser.set_predict_result(inst, pred.tolist(), self._label_dict)
             Parser.compute_accuracy_one_inst(inst, self._eval_metrics)
 
     def create_dictionaries(self, dataset):

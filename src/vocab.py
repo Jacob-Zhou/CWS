@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -90,7 +91,6 @@ class VocabDict(object):
         return self._str2id.get(key, -1)
 
     def get_id(self, key):
-        assert self.is_locked() is True
         i = self._get_id(key)
         if -1 == i:
             i = self._unknown_index
@@ -98,8 +98,6 @@ class VocabDict(object):
         return i
 
     def get_str(self, i):
-        assert self.is_locked() is True
-        assert (i >= 0) and (i < self.size())
         return self._id2str[i]
 
     def add_key_into_dict(self, k):
