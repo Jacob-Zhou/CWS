@@ -3,10 +3,9 @@ import math
 import numpy as np
 import torch
 
-from instance import *
-# from k_means import KMeans
+from instance import Instance
 from simple_bucketing import Bucketing
-from vocab import *
+from vocab import VocabDict
 
 
 class Dataset(object):
