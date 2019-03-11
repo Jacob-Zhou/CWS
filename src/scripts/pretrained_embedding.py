@@ -1,5 +1,7 @@
-import numpy as np
 import pickle
+
+import numpy as np
+
 
 class pretrained_embed:
     def __init__(self):
@@ -22,8 +24,9 @@ class pretrained_embed:
         with open(dict_file_name, "w", encoding='utf-8') as fout_w, open(embedding_file_name, 'wb') as fout_e:
             fout_w.write("total-num=%d\n" % len(self.ext_words))
             for word in self.ext_words:
-                fout_w.write("%s\t10\n" %(word))
+                fout_w.write("%s\t10\n" % (word))
             pickle.dump(self.embeddings, fout_e)
+
 
 if __name__ == "__main__":
     pe = pretrained_embed()
@@ -32,8 +35,3 @@ if __name__ == "__main__":
     embeds = pickle.load(open("giga.bin", 'rb'))
     print(np.sum(np.equal(embeds, pe.embeddings)))
     print(len(pe.ext_words))
-
-
-
-
-

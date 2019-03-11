@@ -145,8 +145,8 @@ class Configurable(object):
         return self._conf.getint('Train', 'save_model_after_eval_num')
 
     @property
-    def train_stop_after_eval_num_no_improve(self):
-        return self._conf.getint('Train', 'train_stop_after_eval_num_no_improve')
+    def patience(self):
+        return self._conf.getint('Train', 'patience')
 
     @property
     def eval_every_update_step_num(self):
@@ -175,14 +175,6 @@ class Configurable(object):
     @property
     def lstm_dropout(self):
         return self._conf.getfloat('Network', 'lstm_dropout')
-
-    @property
-    def lstm_input_dropout(self):
-        return self._conf.getfloat('Network', 'lstm_input_dropout')
-
-    @property
-    def lstm_hidden_dropout_for_next_timestamp(self):
-        return self._conf.getfloat('Network', 'lstm_hidden_dropout_for_next_timestamp')
 
     @property
     def learning_rate(self):

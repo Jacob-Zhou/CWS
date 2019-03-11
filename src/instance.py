@@ -68,11 +68,11 @@ class Instance(object):
         spans, splits = set(), set()
 
         for i, label in enumerate(labels):
-            if label.startswith('B'):
+            if label.startswith('b'):
                 splits.add(i)
-            elif label.startswith('E'):
+            elif label.startswith('e'):
                 splits.add(i + 1)
-            elif label.startswith('S'):
+            elif label.startswith('s'):
                 splits.update({i, i + 1})
         splits = sorted(splits | {0, len(labels)})
         for i, j in zip(splits[:-1], splits[1:]):

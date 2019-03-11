@@ -1,17 +1,20 @@
-import sys
-#sys.path.extend(["../src/", "../", "./"])
-import random
-import time
 import argparse
-from parser import Parser
-from config import Configurable
-import torch
-import numpy as np
 import os
+import random
+import sys
+import time
+from parser import Parser
+
+import numpy as np
+import torch
+
+from config import Configurable
+
 if __name__ == '__main__':
     default_seed = int(time.time())
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--exp_des', default='description-of-this-experiment-no-whitespace')
+    argparser.add_argument(
+        '--exp_des', default='description-of-this-experiment-no-whitespace')
     argparser.add_argument('--config_file', default='config.txt')
     argparser.add_argument('--random_seed', type=int, default=default_seed)
     # argparser.add_argument('--thread', default=4, type=int, help='thread num')
@@ -30,10 +33,8 @@ if __name__ == '__main__':
     torch.manual_seed(all_seeds[3])
     print('random_seeds = ', all_seeds)
 
-    torch.set_num_threads(conf.cpu_thread_num)  # run with CPU, then use multi-thread? What does this mean?
+    # run with CPU, then use multi-thread? What does this mean?
+    torch.set_num_threads(conf.cpu_thread_num)
 
     parser = Parser(conf)
     parser.run()
-
-
-

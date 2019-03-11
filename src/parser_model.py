@@ -13,6 +13,7 @@ class ParserModel(nn.Module):
 
     def __init__(self, name, conf, use_cuda):
         super(ParserModel, self).__init__()
+
         self._conf = conf
         self._use_cuda = use_cuda
         self._name = name
@@ -40,14 +41,12 @@ class ParserModel(nn.Module):
                                         embedding_dim=self._conf.char_emb_dim)
         self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
 
-        self.lstm_layer = nn.LSTM(
-            input_size=self._conf.char_emb_dim*2,
-            hidden_size=self._conf.lstm_hidden_dim//2,
-            batch_first=True,
-            bidirectional=True,
-            num_layers=self._conf.lstm_layer_num,
-            dropout=self._conf.lstm_dropout
-        )
+        self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
+                                  hidden_size=self._conf.lstm_hidden_dim//2,
+                                  batch_first=True,
+                                  bidirectional=True,
+                                  num_layers=self._conf.lstm_layer_num,
+                                  dropout=self._conf.lstm_dropout)
 
         self.mlp_layer = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
         self.loss_func = nn.CrossEntropyLoss()
@@ -77,6 +76,9 @@ class ParserModel(nn.Module):
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices]
         x = self.mlp_layer(x)
+        # x = self.lstm_layer(x.transpose(0, 1),
+        #                     mask.float().transpose(0, 1).unsqueeze(dim=2))
+        # x = self.mlp_layer(x.transpose(0, 1))
 
         return x
 

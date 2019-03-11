@@ -49,7 +49,7 @@ class Parser(object):
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 for dataset in self._train_datasets:
-                    self.create_dictionaries(dataset, self._label_dict)
+                    self.create_dictionaries(dataset)
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
                 self._parser_model.init_models(self._char_dict.size(),
@@ -141,7 +141,7 @@ class Parser(object):
 
                 self.set_training_mode(training=True)
 
-            if (best_eval_cnt + self._conf.train_stop_after_eval_num_no_improve < eval_cnt) or \
+            if (best_eval_cnt + self._conf.patience <= eval_cnt) or \
                     (eval_cnt > self._conf.train_max_eval_num):
                 break
 
@@ -211,7 +211,7 @@ class Parser(object):
             Parser.set_predict_result(inst, pred, self._label_dict)
             Parser.compute_accuracy_one_inst(inst, self._eval_metrics)
 
-    def create_dictionaries(self, dataset, label_dict):
+    def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
             for i in range(len(inst)):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
@@ -236,7 +236,7 @@ class Parser(object):
                                default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
         self._label_dict.load(path + self._label_dict.name,
                               default_keys_ids=())
-        print("load  dict done")
+        print("load dict done")
 
     def save_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
