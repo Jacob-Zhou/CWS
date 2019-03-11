@@ -200,12 +200,10 @@ class Parser(object):
     '''
 
     def decode(self, scores, one_batch, mask):
-        inst_num = scores.size(0)
         inst_lengths = [len(inst) for inst in one_batch]
-        assert inst_num == len(one_batch)
         ret = torch.split(scores.argmax(-1)[mask], inst_lengths)
 
-        self._eval_metrics.sent_num += inst_num
+        self._eval_metrics.sent_num += len(one_batch)
         for (inst, pred) in zip(one_batch, ret):
             Parser.set_predict_result(inst, pred.tolist(), self._label_dict)
             Parser.compute_accuracy_one_inst(inst, self._eval_metrics)
