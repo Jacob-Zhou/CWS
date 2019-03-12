@@ -1,8 +1,8 @@
-from configparser import ConfigParser
-import sys
-import os
+# -*- coding: utf-8 -*-
 
-# sys.path.append('..')
+import os
+import sys
+from configparser import ConfigParser
 
 
 class Configurable(object):
