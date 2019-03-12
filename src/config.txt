@@ -8,7 +8,7 @@ dict_dir = ../exp/
 model_dir = ../exp/
 inst_num_max = -1
 sent_max_len = 500
-max_bucket_num = 0
+max_bucket_num = 80
 sent_num_one_batch = 50
 char_num_one_batch = 2500
 
