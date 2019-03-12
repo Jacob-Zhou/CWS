@@ -2,7 +2,6 @@ import math
 import random
 from collections import Counter
 
-import numpy as np
 import torch
 
 from instance import Instance
@@ -58,13 +57,13 @@ class Dataset(object):
 
         if self._use_bucket:
             assert (self._char_num_one_batch > 0)
-            len_counter = Counter()
-            for inst in self.all_inst:
-                len_counter[len(inst)] += 1
+            len_counter = Counter([len(inst) for inst in self.all_inst])
 
             # Automatically decide the bucket num according to the data
-            self._bucket_num = int(min(max_bucket_num, math.ceil(len(len_counter)/1.5),
-                                       np.ceil(self.char_num_total/(2*self._char_num_one_batch))))
+            self._bucket_num = min(max_bucket_num,
+                                   math.ceil(len(len_counter)/1.5),
+                                   math.ceil(self.char_num_total/(2*self._char_num_one_batch)))
+
             assert self._bucket_num > 0
 
             # k_classes = KMeans(self._bucket_num, len_counter)
