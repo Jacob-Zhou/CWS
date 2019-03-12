@@ -7,7 +7,6 @@ cpu_thread_num = 8
 dict_dir = ../exp/ctb6/
 model_dir = ../exp/ctb6/
 inst_num_max = -1
-sent_max_len = 500
 max_bucket_num = 80
 sent_num_one_batch = 50
 char_num_one_batch = 2500

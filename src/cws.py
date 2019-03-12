@@ -252,7 +252,6 @@ class CWS(object):
                                     char_num_one_batch=self._conf.char_num_one_batch,
                                     sent_num_one_batch=self._conf.sent_num_one_batch,
                                     inst_num_max=inst_num_max,
-                                    max_len=self._conf.sent_max_len,
                                     shuffle=shuffle))
 
     @staticmethod

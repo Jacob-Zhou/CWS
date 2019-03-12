@@ -19,7 +19,6 @@ class Dataset(object):
                  sent_num_one_batch=200,
                  inst_num_max=-1,
                  min_len=1,
-                 max_len=100,
                  shuffle=False):
         self._file_name = file_name
         self._file_name_short = file_name[-30:].replace('/', '_')
@@ -32,7 +31,7 @@ class Dataset(object):
                 line = line.strip()
                 if len(line) == 0:
                     length = len(lines)
-                    if length >= min_len and (max_len < 0 or length <= max_len):
+                    if length >= min_len:
                         inst = Instance(len(self._instances), lines)
                         self._instances.append(inst)
                         self.char_num_total += length

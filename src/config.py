@@ -75,10 +75,6 @@ class Configurable(object):
         return not self.use_labeled_crf_loss and self._conf.getint('Run', 'use_unlabeled_crf_loss') != 0
 
     @property
-    def sent_max_len(self):
-        return self._conf.getint('Run', 'sent_max_len')
-
-    @property
     def sent_num_one_batch(self):
         return self._conf.getint('Run', 'sent_num_one_batch')
 
