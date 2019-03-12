@@ -1,4 +1,6 @@
 import math
+import random
+from collections import Counter
 
 import numpy as np
 import torch
@@ -105,9 +107,6 @@ class Dataset(object):
         return self
 
     def __next__(self):
-        if self._sent_index >= len(self):
-            self.rewind()
-            raise StopIteration
         if self._use_bucket:
             return self.get_one_batch_bucket()
         else:
@@ -120,17 +119,6 @@ class Dataset(object):
     def size(self):
         return len(self._instances)
 
-    def rewind(self):
-        self._sent_index = 0
-        if self._use_bucket:
-            if self._shuffle:
-                for (max_len, inst_num, bucket) in self._buckets:
-                    np.random.shuffle(bucket)
-                np.random.shuffle(self._buckets)
-        else:
-            if self._shuffle:
-                np.random.shuffle(self._instances)
-
     @property
     def all_inst(self):
         return self._instances
@@ -139,39 +127,36 @@ class Dataset(object):
     def all_buckets(self):
         return self._buckets
 
-    def get_one_batch_bucket(self, rewind):
+    def get_one_batch_bucket(self):
         if self._bucket_sent_index >= self._bucket_num:
             self._bucket_sent_index = 0
-            assert 0 == self._sent_index
-            if rewind:
-                self.shuffle()
-            else:
-                return
+            if self._shuffle:
+                for (max_len, inst_num, bucket) in self._buckets:
+                    random.shuffle(bucket)
+                random.shuffle(self._buckets)
+            raise StopIteration
 
         max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_sent_index]
-        inst_num = len(this_bucket)
-        assert inst_num > 0
-        assert self._sent_index < inst_num
-        inst_num_left = inst_num - self._sent_index
-        inst_num_for_this_batch = min(inst_num_left, inst_num_one_batch)
-        idx_next_batch = self._sent_index + inst_num_for_this_batch
+        assert self._sent_index < len(this_bucket)
+        idx_next_batch = self._sent_index + inst_num_one_batch
         one_batch = this_bucket[self._sent_index:idx_next_batch]
         assert len(one_batch) > 0
-        for inst in one_batch:
-            self.char_num_accum += len(inst)
-        if idx_next_batch >= inst_num:
-            assert idx_next_batch == inst_num
+        if idx_next_batch >= len(this_bucket):
             self._bucket_sent_index += 1
             self._sent_index = 0
         else:
             self._sent_index = idx_next_batch
 
-    # When all instances are (nearly) consumed, automatically _shuffle
-    #   and be ready for the next batch (user transparent).
-    # DO NOT USE indices. USE instance directly instead.
-    def get_one_batch(self):
-        char_num_accum, one_batch = 0, []
+        return one_batch
 
+    def get_one_batch(self):
+        if self._sent_index >= len(self):
+            self._sent_index = 0
+            if self._shuffle:
+                random.shuffle(self._instances)
+            raise StopIteration
+
+        char_num_accum, one_batch = 0, []
         for inst in self._instances[self._sent_index:]:
             if char_num_accum + len(inst) > self._char_num_one_batch + 25:
                 return one_batch  # not include this instance
