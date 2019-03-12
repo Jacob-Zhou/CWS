@@ -55,15 +55,15 @@ class CWS(object):
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
                 self._cws_model.init_models(self._char_dict.size(),
-                                               self._bichar_dict.size(),
-                                               self._label_dict.size())
+                                            self._bichar_dict.size(),
+                                            self._label_dict.size())
                 self._cws_model.reset_parameters()
                 self._cws_model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
         self._cws_model.init_models(self._char_dict.size(),
-                                       self._bichar_dict.size(),
-                                       self._label_dict.size())
+                                    self._bichar_dict.size(),
+                                    self._label_dict.size())
 
         if self._conf.is_train:
             self.open_and_load_datasets(self._conf.dev_files,
@@ -82,7 +82,7 @@ class CWS(object):
             self._cws_model.load_model(self._conf.model_dir, 0)
         else:
             self._cws_model.load_model(self._conf.model_dir,
-                                          self._conf.model_eval_num)
+                                       self._conf.model_eval_num)
 
         if self._use_cuda:
             # self._cws_model.cuda()
@@ -126,7 +126,7 @@ class CWS(object):
                     if best_eval_cnt > self._conf.save_model_after_eval_num:
                         self.del_model(self._conf.model_dir, best_eval_cnt)
                     self._cws_model.save_model(self._conf.model_dir,
-                                                  eval_cnt)
+                                               eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
                                   output_file_name=None)
                     self._eval_metrics.compute_and_output(self._test_datasets[0],

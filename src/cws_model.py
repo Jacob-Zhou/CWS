@@ -87,6 +87,7 @@ class CWSModel(nn.Module):
         return x
 
     def get_loss(self, mlp_out, target, mask):
+        # return self.loss_func(mlp_out[mask], target[mask])
         return self.crf_layer(mlp_out, target, mask)
 
     def load_model(self, path, eval_num):
