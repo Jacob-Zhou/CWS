@@ -1,9 +1,6 @@
 # ignore data files
 data
 
-# ignore results
-results
-
 # ignore pycache
 __pycache__
 
@@ -14,6 +11,3 @@ __pycache__
 # ignore vscode and pycharm
 .idea
 .vscode
-
-# ignore log files
-log*
