@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 import time
-from parser import Parser
+from cws import CWS
 
 import numpy as np
 import torch
@@ -33,5 +33,5 @@ if __name__ == '__main__':
     # run with CPU, then use multi-thread? What does this mean?
     torch.set_num_threads(conf.cpu_thread_num)
 
-    parser = Parser(conf)
-    parser.run()
+    cws = CWS(conf)
+    cws.run()

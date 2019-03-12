@@ -8,12 +8,13 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from common import *
+from crf import CRF
 
 
-class ParserModel(nn.Module):
+class CWSModel(nn.Module):
 
     def __init__(self, name, conf, use_cuda):
-        super(ParserModel, self).__init__()
+        super(CWSModel, self).__init__()
 
         self._conf = conf
         self._use_cuda = use_cuda
@@ -24,7 +25,8 @@ class ParserModel(nn.Module):
         self.emb_drop_layer = None
         self.lstm_layer = None
         self.mlp_layer = None
-        self.loss_func = None
+        self.crf_layer = None
+        # self.loss_func = None
 
     @property
     def name(self):
@@ -50,7 +52,8 @@ class ParserModel(nn.Module):
                                   dropout=self._conf.lstm_dropout)
 
         self.mlp_layer = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
-        self.loss_func = nn.CrossEntropyLoss()
+        self.crf_layer = CRF(label_dict_size)
+        # self.loss_func = nn.CrossEntropyLoss()
         print('init models done')
 
     def reset_parameters(self):
@@ -84,7 +87,7 @@ class ParserModel(nn.Module):
         return x
 
     def get_loss(self, mlp_out, target, mask):
-        return self.loss_func(mlp_out[mask], target[mask])
+        return self.crf_layer(mlp_out, target, mask)
 
     def load_model(self, path, eval_num):
         path = os.path.join(path, 'models.%s.%d' % (self.name, eval_num))
