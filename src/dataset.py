@@ -16,7 +16,8 @@ class Dataset(object):
                  sent_num_one_batch=200,
                  inst_num_max=-1,
                  min_len=1,
-                 max_len=100):
+                 max_len=100,
+                 shuffle=False):
         self._file_name = file_name
         self._file_name_short = file_name[-30:].replace('/', '_')
         self._instances = []
@@ -42,10 +43,7 @@ class Dataset(object):
                                                           self.size(),
                                                           self.char_num_total))
 
-        self.one_batch = []
-        self.word_num_accum_so_far = 0
-
-        self._idx_to_read_next_batch = 0
+        self._sent_index = 0
         self._char_num_one_batch = char_num_one_batch
         self._sent_num_one_batch = sent_num_one_batch
         assert self._char_num_one_batch > 0 or self._sent_num_one_batch > 0
@@ -53,7 +51,8 @@ class Dataset(object):
         self._bucket_num = -1
         self._use_bucket = (max_bucket_num > 1)
         self._buckets = None  # [(max_len, inst_num_one_batch, bucket)]
-        self._bucket_idx_to_read_next_batch = 0
+        self._bucket_sent_index = 0
+        self._shuffle = shuffle
 
         if self._use_bucket:
             assert (self._char_num_one_batch > 0)
@@ -102,6 +101,18 @@ class Dataset(object):
     def __len__(self):
         return len(self._instances)
 
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._sent_index >= len(self):
+            self.rewind()
+            raise StopIteration
+        if self._use_bucket:
+            return self.get_one_batch_bucket()
+        else:
+            return self.get_one_batch()
+
     @property
     def file_name_short(self):
         return self._file_name_short
@@ -109,13 +120,16 @@ class Dataset(object):
     def size(self):
         return len(self._instances)
 
-    def _shuffle(self):
+    def rewind(self):
+        self._sent_index = 0
         if self._use_bucket:
-            for (max_len, inst_num, bucket) in self._buckets:
-                np.random.shuffle(bucket)
-            np.random.shuffle(self._buckets)
+            if self._shuffle:
+                for (max_len, inst_num, bucket) in self._buckets:
+                    np.random.shuffle(bucket)
+                np.random.shuffle(self._buckets)
         else:
-            np.random.shuffle(self._instances)
+            if self._shuffle:
+                np.random.shuffle(self._instances)
 
     @property
     def all_inst(self):
@@ -126,60 +140,43 @@ class Dataset(object):
         return self._buckets
 
     def get_one_batch_bucket(self, rewind):
-        if self._bucket_idx_to_read_next_batch >= self._bucket_num:
-            self._bucket_idx_to_read_next_batch = 0
-            assert 0 == self._idx_to_read_next_batch
+        if self._bucket_sent_index >= self._bucket_num:
+            self._bucket_sent_index = 0
+            assert 0 == self._sent_index
             if rewind:
-                self._shuffle()
+                self.shuffle()
             else:
                 return
 
-        max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_idx_to_read_next_batch]
+        max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_sent_index]
         inst_num = len(this_bucket)
         assert inst_num > 0
-        assert self._idx_to_read_next_batch < inst_num
-        inst_num_left = inst_num - self._idx_to_read_next_batch
+        assert self._sent_index < inst_num
+        inst_num_left = inst_num - self._sent_index
         inst_num_for_this_batch = min(inst_num_left, inst_num_one_batch)
-        idx_next_batch = self._idx_to_read_next_batch + inst_num_for_this_batch
-        self.one_batch = this_bucket[self._idx_to_read_next_batch:idx_next_batch]
-        assert len(self.one_batch) > 0
-        for inst in self.one_batch:
-            self.word_num_accum_so_far += len(inst)
+        idx_next_batch = self._sent_index + inst_num_for_this_batch
+        one_batch = this_bucket[self._sent_index:idx_next_batch]
+        assert len(one_batch) > 0
+        for inst in one_batch:
+            self.char_num_accum += len(inst)
         if idx_next_batch >= inst_num:
             assert idx_next_batch == inst_num
-            self._bucket_idx_to_read_next_batch += 1
-            self._idx_to_read_next_batch = 0
+            self._bucket_sent_index += 1
+            self._sent_index = 0
         else:
-            self._idx_to_read_next_batch = idx_next_batch
+            self._sent_index = idx_next_batch
 
     # When all instances are (nearly) consumed, automatically _shuffle
     #   and be ready for the next batch (user transparent).
     # DO NOT USE indices. USE instance directly instead.
-    def get_one_batch(self, rewind=True):
-        self.one_batch = []
-        self.word_num_accum_so_far = 0
-        to_return = False
-        if self._use_bucket:
-            self.get_one_batch_bucket(rewind)
-            to_return = True
-        else:
-            inst_num_left = self.size() - self._idx_to_read_next_batch
-            # assume 25 is the averaged #token in a sentence
-            # if inst_num_left <= 0 or \
-            #         (char_num is not None) and (inst_num_left * 25 < char_num / 2) \
-            #         or sent_num < inst_num_left / 2:
-            # The above is a more complex way
-            # The following way: a batch can consist of only one instance
-            if inst_num_left <= 0:
-                if rewind:
-                    self._shuffle()
-                else:
-                    to_return = True
-                self._idx_to_read_next_batch = 0
+    def get_one_batch(self):
+        char_num_accum, one_batch = 0, []
 
-        if not to_return:
-            begin = self._idx_to_read_next_batch
-            end = self._idx_to_read_next_batch+self._sent_num_one_batch
-            self.one_batch = self._instances[begin:end]
-            self._idx_to_read_next_batch = end
-        return self.one_batch
+        for inst in self._instances[self._sent_index:]:
+            if char_num_accum + len(inst) > self._char_num_one_batch + 25:
+                return one_batch  # not include this instance
+            one_batch.append(inst)
+            char_num_accum += len(inst)
+            self._sent_index += 1
+
+        return one_batch

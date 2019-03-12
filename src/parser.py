@@ -44,7 +44,8 @@ class Parser(object):
         if self._conf.is_train:
             self.open_and_load_datasets(self._conf.train_files,
                                         self._train_datasets,
-                                        inst_num_max=self._conf.inst_num_max)
+                                        inst_num_max=self._conf.inst_num_max,
+                                        shuffle=True)
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 for dataset in self._train_datasets:
@@ -102,54 +103,42 @@ class Parser(object):
             self._eval_metrics.clear()
 
     def train(self):
-        update_step_cnt, eval_cnt, best_eval_cnt, best_accuracy = 0, 0, 0, 0.
+        best_eval_cnt, best_accuracy = 0, 0.
         self._eval_metrics.clear()
-        self.set_training_mode(training=True)
-        while True:
-            inst_num = self.train_or_eval_one_batch(self._train_datasets[0],
-                                                    training=True)
-            assert inst_num > 0
-            update_step_cnt += 1
-            print('.', end='')
-            if 0 == update_step_cnt % self._conf.eval_every_update_step_num:
-                eval_cnt += 1
-                self._eval_metrics.compute_and_output(self._train_datasets[0],
-                                                      eval_cnt)
-                self._eval_metrics.clear()
+        for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
+            self.set_training_mode(training=True)
+            for batch in self._train_datasets[0]:
+                self.train_or_eval_one_batch(batch)
+            self._eval_metrics.compute_and_output(self._train_datasets[0],
+                                                  eval_cnt)
+            self._eval_metrics.clear()
 
-                self.evaluate(self._dev_datasets[0])
-                self._eval_metrics.compute_and_output(self._dev_datasets[0],
-                                                      eval_cnt)
-                current_fmeasure = self._eval_metrics.fscore
-                self._eval_metrics.clear()
+            self.evaluate(self._dev_datasets[0])
+            self._eval_metrics.compute_and_output(self._dev_datasets[0],
+                                                  eval_cnt)
+            current_fmeasure = self._eval_metrics.fscore
+            self._eval_metrics.clear()
 
-                if best_accuracy < current_fmeasure - 1e-3:
-                    if eval_cnt > self._conf.save_model_after_eval_num:
-                        if best_eval_cnt > self._conf.save_model_after_eval_num:
-                            self.del_model(self._conf.model_dir, best_eval_cnt)
-                        self._parser_model.save_model(self._conf.model_dir,
-                                                      eval_cnt)
-                        self.evaluate(dataset=self._test_datasets[0],
-                                      output_file_name=None)
-                        self._eval_metrics.compute_and_output(self._test_datasets[0],
-                                                              eval_cnt)
-                        self._eval_metrics.clear()
+            if best_accuracy < current_fmeasure - 1e-3:
+                if eval_cnt > self._conf.save_model_after_eval_num:
+                    if best_eval_cnt > self._conf.save_model_after_eval_num:
+                        self.del_model(self._conf.model_dir, best_eval_cnt)
+                    self._parser_model.save_model(self._conf.model_dir,
+                                                  eval_cnt)
+                    self.evaluate(dataset=self._test_datasets[0],
+                                  output_file_name=None)
+                    self._eval_metrics.compute_and_output(self._test_datasets[0],
+                                                          eval_cnt)
+                    self._eval_metrics.clear()
 
-                    best_eval_cnt = eval_cnt
-                    best_accuracy = current_fmeasure
+                best_eval_cnt = eval_cnt
+                best_accuracy = current_fmeasure
 
-                self.set_training_mode(training=True)
-
-            if (best_eval_cnt + self._conf.patience <= eval_cnt) or \
-                    (eval_cnt > self._conf.train_max_eval_num):
+            if best_eval_cnt + self._conf.patience <= eval_cnt:
                 break
 
-    def train_or_eval_one_batch(self, dataset, training):
-        one_batch = dataset.get_one_batch(rewind=training)
-        inst_num = len(one_batch)
-        if 0 == inst_num:
-            return 0
-
+    def train_or_eval_one_batch(self, one_batch):
+        print('.', end='')
         chars, bichars, labels = self.compose_batch_data(one_batch)
         mask = chars.ne(padding_idx)
         time1 = time.time()
@@ -160,7 +149,7 @@ class Parser(object):
         self._eval_metrics.loss_accumulated += label_loss.item()
         time3 = time.time()
 
-        if training:
+        if self.training:
             label_loss.backward()
             nn.utils.clip_grad_norm_(self._parser_model.parameters(),
                                      max_norm=self._conf.clip)
@@ -170,20 +159,17 @@ class Parser(object):
         self.decode(mlp_out, one_batch, mask)
         time5 = time.time()
 
+        self._eval_metrics.sent_num += len(one_batch)
         self._eval_metrics.forward_time += time2 - time1
         self._eval_metrics.loss_time += time3 - time2
         self._eval_metrics.backward_time += time4 - time3
         self._eval_metrics.decode_time += time5 - time4
-        return inst_num
 
     @torch.no_grad()
     def evaluate(self, dataset, output_file_name=None):
         self.set_training_mode(training=False)
-        while True:
-            inst_num = self.train_or_eval_one_batch(dataset, training=False)
-            print('.', end='')
-            if 0 == inst_num:
-                break
+        for batch in dataset:
+            self.train_or_eval_one_batch(batch)
 
         if output_file_name is not None:
             with open(output_file_name, 'w', encoding='utf-8') as out_file:
@@ -203,7 +189,6 @@ class Parser(object):
         inst_lengths = [len(inst) for inst in one_batch]
         ret = torch.split(scores.argmax(-1)[mask], inst_lengths)
 
-        self._eval_metrics.sent_num += len(one_batch)
         for (inst, pred) in zip(one_batch, ret):
             Parser.set_predict_result(inst, pred.tolist(), self._label_dict)
             Parser.compute_accuracy_one_inst(inst, self._eval_metrics)
@@ -254,7 +239,7 @@ class Parser(object):
         else:
             print('Delete model %s error, not exist.' % path)
 
-    def open_and_load_datasets(self, file_names, datasets, inst_num_max):
+    def open_and_load_datasets(self, file_names, datasets, inst_num_max, shuffle=False):
         assert len(datasets) == 0
         names = file_names.strip().split(':')
         assert len(names) > 0
@@ -264,7 +249,8 @@ class Parser(object):
                                     char_num_one_batch=self._conf.char_num_one_batch,
                                     sent_num_one_batch=self._conf.sent_num_one_batch,
                                     inst_num_max=inst_num_max,
-                                    max_len=self._conf.sent_max_len))
+                                    max_len=self._conf.sent_max_len,
+                                    shuffle=shuffle))
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
@@ -279,10 +265,8 @@ class Parser(object):
         eval_metrics.correct_num += correct_num
 
     def set_training_mode(self, training=True):
-        if training:
-            self._parser_model.train()
-        else:
-            self._parser_model.eval()
+        self.training = training
+        self._parser_model.train(training)
 
     def compose_batch_data(self, one_batch):
         chars = pad_sequence([inst.chars_i for inst in one_batch], True)
