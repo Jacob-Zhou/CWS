@@ -149,10 +149,6 @@ class Configurable(object):
         return self._conf.getint('Train', 'patience')
 
     @property
-    def eval_every_update_step_num(self):
-        return self._conf.getint('Train', 'eval_every_update_step_num')
-
-    @property
     def save_model_after_eval_num(self):
         return self._conf.getint('Train', 'save_model_after_eval_num')
 

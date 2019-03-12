@@ -24,7 +24,6 @@ is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 50
 patience = 10
-eval_every_update_step_num = 469
 
 [Network]
 char_emb_dim = 100
