@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
 
-from common import (data_type, get_time_str, padding_idx, padding_str,
-                    unknown_idx, unknown_str)
+from common import (get_time_str, padding_idx, padding_str, unknown_idx,
+                    unknown_str)
 from dataset import Dataset
 from optimizer import Optimizer
 from parser_model import ParserModel
@@ -237,8 +237,8 @@ class Parser(object):
 
     def save_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
-        assert not os.path.exists(path)
-        os.mkdir(path)
+        if not os.path.exists(path):
+            os.mkdir(path)
         self._char_dict.save(path + self._char_dict.name)
         self._bichar_dict.save(path + self._bichar_dict.name)
         self._label_dict.save(path + self._label_dict.name)

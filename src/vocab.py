@@ -36,7 +36,6 @@ class VocabDict(object):
                 f.write("%s\t%d\n" % (s, cnt))
         print("\tSaved %d vocab into %s\n" % (total_num, file_name))
         self._counter.clear()
-    #  ------
 
     def load(self, file_name, cutoff_freq=0, default_keys_ids=()):
         assert len(self._counter) == 0
