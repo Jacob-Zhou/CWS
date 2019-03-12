@@ -3,22 +3,14 @@ import time
 import numpy as np
 import torch
 
-data_type = np.float32
-data_type_torch = torch.float32
-data_type_int32 = np.int32
-# data_type_int_torch = torch.int32
-data_type_int = np.long
-data_type_int_torch = torch.long
-
 ignore_label_id = -1
 padding_str = '<-PAD->'
 padding_idx = 0
 unknown_str = '<-UNK->'
 unknown_idx = 1
 
-abs_max_score = data_type(1e5)
-
-eps_ratio = 1e-5 if data_type is np.float32 else 1e-10
+abs_max_score = 1e5
+eps_ratio = 1e-10
 
 
 def coarse_equal_to(self, a, b):
