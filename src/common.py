@@ -2,8 +2,7 @@
 
 import time
 
-import numpy as np
-import torch
+pimport torch
 
 ignore_label_id = -1
 padding_str = '<-PAD->'
@@ -16,7 +15,7 @@ eps_ratio = 1e-10
 
 
 def coarse_equal_to(self, a, b):
-    eps = eps_ratio * np.abs(b)
+    eps = eps_ratio * abs(b)
     return b + eps >= a >= b - eps
 
 
