@@ -8,7 +8,6 @@ cpu_thread_num 8
 dict_dir ../exp/
 model_dir ../exp/
 inst_num_max -1
-sent_max_len 500
 max_bucket_num 80
 sent_num_one_batch 50
 char_num_one_batch 2500
@@ -162,7 +161,7 @@ i, inst_num, max_len, batch_num_to_provide, batch_num_total =  25 17 278 2 54
 numeralizing all instances in all datasets
 ../exp/models.ws.0
 Load model ../exp/models.ws.0 done.
-ParserModel(
+CWSModel(
   (emb_chars): Embedding(4227, 100)
   (emb_bichars): Embedding(206964, 100)
   (emb_drop_layer): Dropout(p=0.5)
