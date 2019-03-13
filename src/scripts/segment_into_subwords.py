@@ -12,9 +12,9 @@ dict:
 '''
 
 
-def load_dict(dict_file_name, max_word_len, max_entry_num):
+def load_dict(dict_filename, max_word_len, max_entry_num):
     dicts = [dict() for i in range(max_word_len + 1)]
-    with open(dict_file_name, mode='r', encoding='utf-8') as f:
+    with open(dict_filename, mode='r', encoding='utf-8') as f:
         for (i, line) in enumerate(f):
             if i > max_entry_num > 0:
                 break

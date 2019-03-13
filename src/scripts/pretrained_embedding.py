@@ -20,8 +20,8 @@ class pretrained_embed:
                 embedding_list.append(vector)
         self.embeddings = np.concatenate(embedding_list, axis=0)
 
-    def save(self, dict_file_name, embedding_file_name):
-        with open(dict_file_name, "w", encoding='utf-8') as fout_w, open(embedding_file_name, 'wb') as fout_e:
+    def save(self, dict_filename, embedding_filename):
+        with open(dict_filename, "w", encoding='utf-8') as fout_w, open(embedding_filename, 'wb') as fout_e:
             fout_w.write("total-num=%d\n" % len(self.ext_words))
             for word in self.ext_words:
                 fout_w.write("%s\t10\n" % (word))
