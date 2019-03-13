@@ -39,6 +39,18 @@ class CWS(object):
         # there may be more than one label dictionaries
         self._label_dict = VocabDict('labels')
 
+        # transition scores of the labels
+        # make sure the label dict must have been sorted
+        # [B, E, M, S]
+        self._strans = torch.tensor([1., 0., 0., 1.]).log()
+        self._etrans = torch.tensor([0., 1., 0., 1.]).log()
+        self._trans = torch.tensor([
+            [0., 1., 1., 0.],  # B
+            [1., 0., 0., 1.],  # E
+            [0., 1., 1., 0.],  # M
+            [1., 0., 0., 1.]   # S
+        ]).log()  # (FROM->TO)
+
         self._eval_metrics = Metric()
         self._cws_model = CWSModel('ws', conf, self._use_cuda)
 
@@ -54,16 +66,17 @@ class CWS(object):
                     self.create_dictionaries(dataset)
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
-                self._cws_model.init_models(self._char_dict.size(),
-                                            self._bichar_dict.size(),
-                                            self._label_dict.size())
+
+                self._cws_model.init_models(len(self._char_dict),
+                                            len(self._bichar_dict),
+                                            len(self._label_dict))
                 self._cws_model.reset_parameters()
                 self._cws_model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
-        self._cws_model.init_models(self._char_dict.size(),
-                                    self._bichar_dict.size(),
-                                    self._label_dict.size())
+        self._cws_model.init_models(len(self._char_dict),
+                                    len(self._bichar_dict),
+                                    len(self._label_dict))
 
         if self._conf.is_train:
             self.open_and_load_datasets(self._conf.dev_files,
@@ -87,6 +100,9 @@ class CWS(object):
         if self._use_cuda:
             # self._cws_model.cuda()
             self._cws_model.to(self._cuda_device)
+            self._strans = self._strans.to(self._cuda_device)
+            self._etrans = self._etrans.to(self._cuda_device)
+            self._trans = self._trans.to(self._cuda_device)
         print(self._cws_model)
 
         if self._conf.is_train:
@@ -99,7 +115,7 @@ class CWS(object):
         assert self._conf.is_test
         for dataset in self._test_datasets:
             self.evaluate(dataset=dataset,
-                          output_file_name=dataset.file_name_short + '.out')
+                          output_filename=dataset.filename_short + '.out')
             self._eval_metrics.compute_and_output(self._test_datasets[0],
                                                   self._conf.model_eval_num)
             self._eval_metrics.clear()
@@ -128,7 +144,7 @@ class CWS(object):
                     self._cws_model.save_model(self._conf.model_dir,
                                                eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
-                                  output_file_name=None)
+                                  output_filename=None)
                     self._eval_metrics.compute_and_output(self._test_datasets[0],
                                                           eval_cnt)
                     self._eval_metrics.clear()
@@ -168,13 +184,13 @@ class CWS(object):
         self._eval_metrics.decode_time += time5 - time4
 
     @torch.no_grad()
-    def evaluate(self, dataset, output_file_name=None):
+    def evaluate(self, dataset, output_filename=None):
         self.set_training_mode(training=False)
         for batch in dataset:
             self.train_or_eval_one_batch(batch)
 
-        if output_file_name is not None:
-            with open(output_file_name, 'w', encoding='utf-8') as out_file:
+        if output_filename is not None:
+            with open(output_filename, 'w', encoding='utf-8') as out_file:
                 all_inst = dataset.all_inst
                 for inst in all_inst:
                     inst.write(out_file)
@@ -187,12 +203,33 @@ class CWS(object):
         this will not change inst of the invoker
     '''
 
-    def decode(self, scores, one_batch, mask):
-        inst_lengths = [len(inst) for inst in one_batch]
-        # ret = torch.split(scores.argmax(-1)[mask], inst_lengths)
-        ret = self._cws_model.crf_layer.viterbi(scores, mask)
+    def decode(self, emit, insts, mask):
+        emit, mask = emit.transpose(0, 1), mask.t()
+        T, B, N = emit.shape
+        lens = mask.sum(dim=0)
+        delta = emit.new_zeros(T, B, N)
+        paths = emit.new_zeros(T, B, N, dtype=torch.long)
 
-        for (inst, pred) in zip(one_batch, ret):
+        delta[0] = self._strans + emit[0]  # [B, N]
+
+        for i in range(1, T):
+            trans_i = self._trans.unsqueeze(0)  # [1, N, N]
+            emit_i = emit[i].unsqueeze(1)  # [B, 1, N]
+            scores = trans_i + emit_i + delta[i - 1].unsqueeze(2)  # [B, N, N]
+            delta[i], paths[i] = torch.max(scores, dim=1)
+
+        predicts = []
+        for i, length in enumerate(lens):
+            prev = torch.argmax(delta[length - 1, i] + self._etrans)
+
+            predict = [prev]
+            for j in reversed(range(1, length)):
+                prev = paths[j, i, prev]
+                predict.append(prev)
+            # flip the predicted sequence before appending it to the list
+            predicts.append(paths.new_tensor(predict).flip(0))
+
+        for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred.tolist(), self._label_dict)
             CWS.compute_accuracy_one_inst(inst, self._eval_metrics)
 
@@ -216,11 +253,10 @@ class CWS(object):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
-                             default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
+                             default_keys=[padding_str, unknown_str])
         self._bichar_dict.load(path + self._bichar_dict.name,
-                               default_keys_ids=((padding_str, padding_idx), (unknown_str, unknown_idx)))
-        self._label_dict.load(path + self._label_dict.name,
-                              default_keys_ids=())
+                               default_keys=[padding_str, unknown_str])
+        self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
 
     def save_dictionaries(self, path):
@@ -242,12 +278,12 @@ class CWS(object):
         else:
             print('Delete model %s error, not exist.' % path)
 
-    def open_and_load_datasets(self, file_names, datasets, inst_num_max, shuffle=False):
+    def open_and_load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
         assert len(datasets) == 0
-        names = file_names.strip().split(':')
+        names = filenames.strip().split(':')
         assert len(names) > 0
         for name in names:
-            datasets.append(Dataset(file_name=name,
+            datasets.append(Dataset(filename=name,
                                     max_bucket_num=self._conf.max_bucket_num,
                                     char_num_one_batch=self._conf.char_num_one_batch,
                                     sent_num_one_batch=self._conf.sent_num_one_batch,
@@ -310,7 +346,7 @@ class Metric(object):
         self.time_gap = float(time.time() - self.start_time)
         print(
             "\n%30s(%5d): loss=%.3f precision=%.3f, recall=%.3f, fscore=%.3f, %d sentences, time=%.3f (%.1f %.1f %.1f %.1f) [%s]" %
-            (dataset.file_name_short, eval_cnt, self.loss_accumulated, self.precision, self.recall, self.fscore, self.sent_num,
+            (dataset.filename_short, eval_cnt, self.loss_accumulated, self.precision, self.recall, self.fscore, self.sent_num,
              self.time_gap, self.forward_time, self.loss_time, self.backward_time, self.decode_time,
              get_time_str())
         )
