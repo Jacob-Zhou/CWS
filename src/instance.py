@@ -18,16 +18,11 @@ class Instance(object):
         self.bichars_i = torch.zeros(n).long()
         self.labels_i = torch.zeros(n).long()
         self.labels_i_predict = torch.zeros(n).long()
+
         self.decompose_sent(lines)
 
     def __len__(self):
         return len(self.chars_s)
-
-    def size(self):
-        return len(self.chars_s)
-
-    def pad_size(self):
-        return len(self.labels_i) - self.size()
 
     @staticmethod
     def compose_sent(chars_s, bichars_s, labels_s):
