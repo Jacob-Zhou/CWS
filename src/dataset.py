@@ -13,19 +13,19 @@ from vocab import VocabDict
 
 class Dataset(object):
 
-    def __init__(self, file_name,
+    def __init__(self, filename,
                  max_bucket_num=80,
                  char_num_one_batch=5000,
                  sent_num_one_batch=200,
                  inst_num_max=-1,
                  min_len=1,
                  shuffle=False):
-        self._file_name = file_name
-        self._file_name_short = file_name[-30:].replace('/', '_')
+        self._filename = filename
+        self._filename_short = filename[-30:].replace('/', '_')
         self._instances = []
 
         self.char_num_total = 0
-        with open(self._file_name, mode='r', encoding='utf-8') as f:
+        with open(self._filename, mode='r', encoding='utf-8') as f:
             lines = []
             for line in f:
                 line = line.strip()
@@ -35,15 +35,14 @@ class Dataset(object):
                         inst = Instance(len(self._instances), lines)
                         self._instances.append(inst)
                         self.char_num_total += length
-                        if (inst_num_max > 0) and (self.size() == inst_num_max):
+                        if (inst_num_max > 0) and (len(self) == inst_num_max):
                             break
                     lines = []
                 else:
                     lines.append(line)
-        assert self.size() > 0
-        print('Reading %s done: %d instances %d chars' % (self._file_name_short,
-                                                          self.size(),
-                                                          self.char_num_total))
+        assert len(self) > 0
+        print('Reading %s done: %d instances %d chars' %
+              (self._filename_short, len(self), self.char_num_total))
 
         self._sent_index = 0
         self._char_num_one_batch = char_num_one_batch
@@ -96,7 +95,7 @@ class Dataset(object):
                     inst_num_one_batch_this_bucket)
                 # assert inst_num_one_batch_this_bucket * (batch_num_to_provide-0.5) < inst_num
             print('%s can provide %d batches in total with %d buckets' %
-                  (self._file_name_short, batch_num_total, self._bucket_num))
+                  (self._filename_short, batch_num_total, self._bucket_num))
             self._buckets = [(ml, nb, b) for ml, nb, b in zip(
                 max_len_buckets, inst_num_one_batch_buckets, buckets)]
 
@@ -113,8 +112,8 @@ class Dataset(object):
             return self.get_one_batch()
 
     @property
-    def file_name_short(self):
-        return self._file_name_short
+    def filename_short(self):
+        return self._filename_short
 
     def size(self):
         return len(self._instances)
