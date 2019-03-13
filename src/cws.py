@@ -220,6 +220,8 @@ class CWS(object):
 
         predicts = []
         for i, length in enumerate(lens):
+            # trace the best tag sequence from the end of the sentence
+            # add the end transition scores to the total scores before tracing
             prev = torch.argmax(delta[length - 1, i] + self._etrans)
 
             predict = [prev]
