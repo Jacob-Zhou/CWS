@@ -50,7 +50,8 @@ class CWSModel(nn.Module):
                                   dropout=self._conf.lstm_dropout)
 
         self.mlp_layer = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
-        self.loss_func = nn.CrossEntropyLoss()
+        self.log_softmax = nn.LogSoftmax(dim=-1)
+        self.loss_func = nn.NLLLoss()
         print('init models done')
 
     def reset_parameters(self):
@@ -77,6 +78,7 @@ class CWSModel(nn.Module):
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices]
         x = self.mlp_layer(x)
+        x = self.log_softmax(x)
         # x = self.lstm_layer(x.transpose(0, 1),
         #                     mask.float().transpose(0, 1).unsqueeze(dim=2))
         # x = self.mlp_layer(x.transpose(0, 1))
