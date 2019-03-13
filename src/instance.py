@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import re
-
-from common import *
+import torch
 
 
 class Instance(object):
