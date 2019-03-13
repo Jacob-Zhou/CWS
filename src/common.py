@@ -2,9 +2,8 @@
 
 import time
 
-pimport torch
+import torch
 
-ignore_label_id = -1
 padding_str = '<-PAD->'
 padding_idx = 0
 unknown_str = '<-UNK->'
