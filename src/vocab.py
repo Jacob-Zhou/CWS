@@ -44,6 +44,8 @@ class VocabDict(object):
             assert len(lines) > 0
             assert total_num == len(lines) - 1
         tokens, freqs = zip(*[line.split('\t') for line in lines[1:]])
+        # sort the tokens to avoid randomness, especially for labels.
+        # all labels must be sorted to correspond to their transition scores.
         tokens = sorted(token for token, freq in zip(tokens, freqs)
                         if int(freq) > cutoff_freq)
         self._id2str = list(default_keys) + tokens
