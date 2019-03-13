@@ -64,7 +64,7 @@ class Instance(object):
 
     @classmethod
     def get_spans(cls, labels):
-        # record span of each words and split points
+        # record span of each words and their split points
         spans, splits = set(), set()
 
         for i, label in enumerate(labels):
