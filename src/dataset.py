@@ -71,33 +71,27 @@ class Dataset(object):
             max_len_buckets = k_classes.max_len_in_buckets
             len2bucket_idx = k_classes.len2bucket_idx
             self._bucket_num = len(max_len_buckets)
-            buckets = [None] * self._bucket_num
-            # Can NOT use [[]] * self._bucket_num, shallow copy issue!
+            buckets = [[] for _ in range(self._bucket_num)]
             for inst in self.all_inst:
-                b_idx = len2bucket_idx[len(inst)]
-                if buckets[b_idx] is None:
-                    buckets[b_idx] = [inst]
-                else:
-                    buckets[b_idx].append(inst)
+                buckets[len2bucket_idx[len(inst)]].append(inst)
             batch_num_total = 0
             inst_num_one_batch_buckets = []
             for (i, max_len) in enumerate(max_len_buckets):
                 inst_num = len(buckets[i])
                 batch_num_to_provide = max(
-                    1, round(float(inst_num) * max_len / self._char_num_one_batch))
+                    1, round(inst_num * max_len / self._char_num_one_batch)
+                )
                 print("i, inst_num, max_len, batch_num_to_provide, batch_num_total = ",
                       i, inst_num, max_len, batch_num_to_provide, batch_num_total)
                 batch_num_total += batch_num_to_provide
-                inst_num_one_batch_this_bucket = math.ceil(
-                    inst_num / batch_num_to_provide)
+                inst_num_one_batch = math.ceil(inst_num / batch_num_to_provide)
                 # The goal is to avoid the last batch of one bucket contains too few instances
-                inst_num_one_batch_buckets.append(
-                    inst_num_one_batch_this_bucket)
-                # assert inst_num_one_batch_this_bucket * (batch_num_to_provide-0.5) < inst_num
+                inst_num_one_batch_buckets.append(inst_num_one_batch)
+                # assert inst_num_one_batch * (batch_num_to_provide-0.5) < inst_num
             print('%s can provide %d batches in total with %d buckets' %
                   (self._filename_short, batch_num_total, self._bucket_num))
-            self._buckets = [(ml, nb, b) for ml, nb, b in zip(
-                max_len_buckets, inst_num_one_batch_buckets, buckets)]
+            self._buckets = [(ml, nb, b)
+                             for ml, nb, b in zip(max_len_buckets, inst_num_one_batch_buckets, buckets)]
 
     def __len__(self):
         return len(self._instances)
