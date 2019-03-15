@@ -40,7 +40,7 @@ class CWS(object):
         self._label_dict = VocabDict('labels')
 
         # transition scores of the labels
-        # make sure the label dict must have been sorted
+        # make sure the label dict have been sorted
         # [B, E, M, S]
         self._strans = torch.tensor([1., 0., 0., 1.]).log()
         self._etrans = torch.tensor([0., 1., 0., 1.]).log()
