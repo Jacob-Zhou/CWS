@@ -2,7 +2,7 @@
 
 import torch
 import torch.nn as nn
-from src.modules import SharedDropout
+from src.modules.dropout import SharedDropout
 from torch.nn.utils.rnn import PackedSequence
 
 
