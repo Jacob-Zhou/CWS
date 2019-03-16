@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from src.common import padding_idx, padding_str, unknown_idx, unknown_str
 from src.cws_model import CWSModel
+from src.metric import Metric
 from src.optimizer import Optimizer
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
@@ -26,6 +27,8 @@ class CWS(object):
             os.environ["CUDA_VISIBLE_DEVICES"] = str(self._cuda_device)
             # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../main.py ...
             self._cuda_device = 0
+        self.training = False
+
         self._optimizer = None
         self._use_bucket = (self._conf.max_bucket_num > 1)
         self._train_datasets = []
@@ -201,36 +204,41 @@ class CWS(object):
     '''
 
     def decode(self, emit, insts, mask):
-        emit, mask = emit.transpose(0, 1), mask.t()
-        T, B, N = emit.shape
-        lens = mask.sum(dim=0)
-        delta = emit.new_zeros(T, B, N)
-        paths = emit.new_zeros(T, B, N, dtype=torch.long)
+        if self.training:
+            lengths = [len(i) for i in insts]
+            predicts = torch.split(emit.argmax(-1)[mask], lengths)
+        else:
+            emit, mask = emit.transpose(0, 1), mask.t()
+            T, B, N = emit.shape
+            lens = mask.sum(dim=0)
+            delta = emit.new_zeros(T, B, N)
+            paths = emit.new_zeros(T, B, N, dtype=torch.long)
 
-        delta[0] = self._strans + emit[0]  # [B, N]
+            delta[0] = self._strans + emit[0]  # [B, N]
 
-        for i in range(1, T):
-            trans_i = self._trans.unsqueeze(0)  # [1, N, N]
-            emit_i = emit[i].unsqueeze(1)  # [B, 1, N]
-            scores = trans_i + emit_i + delta[i - 1].unsqueeze(2)  # [B, N, N]
-            delta[i], paths[i] = torch.max(scores, dim=1)
+            for i in range(1, T):
+                # [B, N, N]
+                scores = self._trans.unsqueeze(0) + delta[i - 1].unsqueeze(-1)
+                scores, paths[i] = torch.max(scores, dim=1)
+                delta[i] = scores + emit[i]
 
-        predicts = []
-        for i, length in enumerate(lens):
-            # trace the best tag sequence from the end of the sentence
-            # add the end transition scores to the total scores before tracing
-            prev = torch.argmax(delta[length - 1, i] + self._etrans)
+            predicts = []
+            for i, length in enumerate(lens):
+                # trace the best tag sequence from the end of the sentence
+                # add end transition scores to the total scores before tracing
+                prev = torch.argmax(delta[length - 1, i] + self._etrans)
 
-            predict = [prev]
-            for j in reversed(range(1, length)):
-                prev = paths[j, i, prev]
-                predict.append(prev)
-            # flip the predicted sequence before appending it to the list
-            predicts.append(paths.new_tensor(predict).flip(0))
+                predict = [prev]
+                for j in reversed(range(1, length)):
+                    prev = paths[j, i, prev]
+                    predict.append(prev)
+                # flip the predicted sequence before appending it to the list
+                predicts.append(paths.new_tensor(predict).flip(0))
 
         for (inst, pred) in zip(insts, predicts):
-            CWS.set_predict_result(inst, pred.tolist(), self._label_dict)
-            CWS.compute_accuracy_one_inst(inst, self._eval_metrics)
+            CWS.set_predict_result(inst, pred, self._label_dict)
+            CWS.compute_accuracy_one_inst(
+                inst, self._eval_metrics, self.training)
 
     def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
@@ -292,14 +300,17 @@ class CWS(object):
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
         inst.labels_i_predict = pred
-        inst.labels_s_predict = [label_dict.get_str(i) for i in pred]
+        inst.labels_s_predict = [label_dict.get_str(i) for i in pred.tolist()]
 
     @staticmethod
-    def compute_accuracy_one_inst(inst, eval_metrics):
-        gold_num, pred_num, correct_num = inst.evaluate()
-        eval_metrics.gold_num += gold_num
-        eval_metrics.pred_num += pred_num
-        eval_metrics.correct_num += correct_num
+    def compute_accuracy_one_inst(inst, eval_metrics, training):
+        gold_num, pred_num, correct_num, total_labels, correct_labels = inst.evaluate()
+        if not training:
+            eval_metrics.gold_num += gold_num
+            eval_metrics.pred_num += pred_num
+            eval_metrics.correct_num += correct_num
+        eval_metrics.total_labels += total_labels
+        eval_metrics.correct_labels += correct_labels
 
     def set_training_mode(self, training=True):
         self.training = training
@@ -315,37 +326,3 @@ class CWS(object):
             bichars = bichars.cuda()
             labels = labels.cuda()
         return chars, bichars, labels
-
-
-class Metric(object):
-    def __init__(self):
-        self.clear()
-
-    def clear(self):
-        self.sent_num = 0
-        self.gold_num = 0
-        self.pred_num = 0
-        self.correct_num = 0
-        self.precision = 0.
-        self.recall = 0.
-        self.fscore = 0.
-        self.loss_accumulated = 0.
-        self.start_time = time.time()
-        self.time_gap = 0.
-        self.forward_time = 0.
-        self.loss_time = 0.
-        self.backward_time = 0.
-        self.decode_time = 0.
-
-    def compute_and_output(self, dataset, eval_cnt):
-        assert self.gold_num > 0
-        self.precision = 100. * self.correct_num/self.pred_num
-        self.recall = 100. * self.correct_num/self.gold_num
-        self.fscore = 100. * self.correct_num*2/(self.pred_num+self.gold_num)
-        self.time_gap = float(time.time() - self.start_time)
-        print(
-            "\n%30s(%5d): loss=%.3f precision=%.3f, recall=%.3f, fscore=%.3f, %d sentences, time=%.3f (%.1f %.1f %.1f %.1f) [%s]" %
-            (dataset.filename_short, eval_cnt, self.loss_accumulated, self.precision, self.recall, self.fscore, self.sent_num,
-             self.time_gap, self.forward_time, self.loss_time, self.backward_time, self.decode_time,
-             time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())))
-        )

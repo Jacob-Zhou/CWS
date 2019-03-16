@@ -52,8 +52,12 @@ class Instance(object):
         gold_num = len(golds)
         pred_num = len(preds)
         correct_num = len(golds & preds)
+        total_labels = len(self.labels_i)
+        correct_labels = sum(i == j
+                             for i, j in zip(self.labels_i.tolist(),
+                                             self.labels_i_predict.tolist()))
 
-        return gold_num, pred_num, correct_num
+        return gold_num, pred_num, correct_num, total_labels, correct_labels
 
     @classmethod
     def get_spans(cls, labels):
