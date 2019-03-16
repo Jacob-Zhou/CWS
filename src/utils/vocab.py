@@ -54,12 +54,6 @@ class VocabDict(object):
         print('Loading dict %s done: %d keys; unknown-id=%d' % (self.name, len(self), self._unknown_index),
               flush=True)
 
-    def _size(self):
-        return len(self._str2id)
-
-    def size(self):
-        return len(self)
-
     def _get_id(self, key):
         return self._str2id.get(key, -1)
 

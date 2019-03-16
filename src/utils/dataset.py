@@ -109,9 +109,6 @@ class Dataset(object):
     def filename_short(self):
         return self._filename_short
 
-    def size(self):
-        return len(self._instances)
-
     @property
     def all_inst(self):
         return self._instances
