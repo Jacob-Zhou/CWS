@@ -6,9 +6,9 @@ from collections import Counter
 
 import torch
 
-from instance import Instance
-from simple_bucketing import Bucketing
-from vocab import VocabDict
+from .instance import Instance
+from .simple_bucketing import Bucketing
+from .vocab import VocabDict
 
 
 class Dataset(object):

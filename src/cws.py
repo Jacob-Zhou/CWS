@@ -6,14 +6,11 @@ import time
 
 import torch
 import torch.nn as nn
+from src.common import padding_idx, padding_str, unknown_idx, unknown_str
+from src.cws_model import CWSModel
+from src.optimizer import Optimizer
+from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
-
-from common import (get_time_str, padding_idx, padding_str, unknown_idx,
-                    unknown_str)
-from dataset import Dataset
-from optimizer import Optimizer
-from cws_model import CWSModel
-from vocab import VocabDict
 
 
 class CWS(object):
@@ -27,7 +24,7 @@ class CWS(object):
             # please note that the index is the relative index in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
             assert 0 <= self._cuda_device < 8
             os.environ["CUDA_VISIBLE_DEVICES"] = str(self._cuda_device)
-            # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../src/main.py ...
+            # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../main.py ...
             self._cuda_device = 0
         self._optimizer = None
         self._use_bucket = (self._conf.max_bucket_num > 1)
@@ -350,5 +347,5 @@ class Metric(object):
             "\n%30s(%5d): loss=%.3f precision=%.3f, recall=%.3f, fscore=%.3f, %d sentences, time=%.3f (%.1f %.1f %.1f %.1f) [%s]" %
             (dataset.filename_short, eval_cnt, self.loss_accumulated, self.precision, self.recall, self.fscore, self.sent_num,
              self.time_gap, self.forward_time, self.loss_time, self.backward_time, self.decode_time,
-             get_time_str())
+             time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())))
         )

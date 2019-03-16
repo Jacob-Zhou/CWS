@@ -2,7 +2,7 @@
 
 from collections import Counter
 
-from common import unknown_str
+from src.common import unknown_str
 
 
 class VocabDict(object):

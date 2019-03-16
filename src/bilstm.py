@@ -2,9 +2,8 @@
 
 import torch
 import torch.nn as nn
+from src.modules import SharedDropout
 from torch.nn.utils.rnn import PackedSequence
-
-from dropout import SharedDropout
 
 
 class BiLSTM(nn.Module):

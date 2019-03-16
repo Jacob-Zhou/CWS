@@ -4,9 +4,8 @@ import os
 
 import torch
 import torch.nn as nn
+from src.common import padding_idx
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-
-from common import padding_idx
 
 
 class CWSModel(nn.Module):

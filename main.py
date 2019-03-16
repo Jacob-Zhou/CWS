@@ -4,12 +4,10 @@ import argparse
 import os
 import sys
 import time
-from cws import CWS
 
 import numpy as np
 import torch
-
-from config import Configurable
+from src import CWS, Configurable
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
