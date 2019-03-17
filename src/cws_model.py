@@ -77,9 +77,6 @@ class CWSModel(nn.Module):
         x = x[inverse_indices]
         x = self.mlp_layer(x)
         x = self.log_softmax(x)
-        # x = self.lstm_layer(x.transpose(0, 1),
-        #                     mask.float().transpose(0, 1).unsqueeze(dim=2))
-        # x = self.mlp_layer(x.transpose(0, 1))
 
         return x
 
