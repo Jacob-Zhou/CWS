@@ -5,7 +5,6 @@ import os
 import sys
 import time
 
-import numpy as np
 import torch
 from src import CWS, Configurable
 
@@ -24,7 +23,6 @@ if __name__ == '__main__':
     # cudaNo = conf.cudaNo
     # os.environ["CUDA_VISIBLE_DEVICES"] = cudaNo
 
-    np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     print('random_seeds = ', args.seed)
 
