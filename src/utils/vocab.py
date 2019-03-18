@@ -2,16 +2,20 @@
 
 from collections import Counter
 
-from src.common import unknown_str
+from src.common import eos, pad, bos, unk
 
 
 class VocabDict(object):
+
     def __init__(self, name):
         self._name = name
         self._counter = Counter()
         self._str2id = {}
         self._id2str = []
-        self._unknown_index = -1
+        self._pad_index = -1
+        self._unk_index = -1
+        self._bos_index = -1
+        self._eos_index = -1
 
     def __len__(self):
         return len(self._str2id)
@@ -19,6 +23,27 @@ class VocabDict(object):
     @property
     def name(self):
         return self._name
+
+    @property
+    def pad_index(self):
+        if self._pad_index < 0:
+            raise AttributeError
+        else:
+            return self._pad_index
+
+    @property
+    def bos_index(self):
+        if self._bos_index < 0:
+            raise AttributeError
+        else:
+            return self._bos_index
+
+    @property
+    def eos_index(self):
+        if self._eos_index < 0:
+            raise AttributeError
+        else:
+            return self._eos_index
 
     #  ------ _counter ------
     def add_key_into_counter(self, k):
@@ -50,19 +75,15 @@ class VocabDict(object):
                         if int(freq) > cutoff_freq)
         self._id2str = list(default_keys) + tokens
         self._str2id = {token: i for i, token in enumerate(self._id2str)}
-        self._unknown_index = self._get_id(unknown_str)
-        print('Loading dict %s done: %d keys; unknown-id=%d' % (self.name, len(self), self._unknown_index),
-              flush=True)
-
-    def _get_id(self, key):
-        return self._str2id.get(key, -1)
+        self._pad_index = self._str2id.get(pad, -1)
+        self._unk_index = self._str2id.get(unk, -1)
+        self._bos_index = self._str2id.get(bos, -1)
+        self._eos_index = self._str2id.get(eos, -1)
+        print('Loading dict %s done: %d keys; unk_index=%d' %
+              (self.name, len(self), self._unk_index))
 
     def get_id(self, key):
-        i = self._get_id(key)
-        if -1 == i:
-            i = self._unknown_index
-            # print('%s, unk: %s %d' % (self.name, key, i))
-        return i
+        return self._str2id.get(key, self._unk_index)
 
     def get_str(self, i):
         return self._id2str[i]
