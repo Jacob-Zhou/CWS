@@ -11,7 +11,7 @@ class Instance(object):
         self.chars_s = [''] * n
         self.bichars_s = [''] * n
         self.labels_s = [''] * n
-        self.labels_s_predict = [''] * n
+        self.labels_s_pred = [''] * n
         self.chars_i = torch.zeros(n).long()
         self.bichars_i = torch.zeros(n).long()
         self.labels_i = torch.zeros(n).long()
@@ -33,8 +33,9 @@ class Instance(object):
         return lines
 
     def write(self, out_file):
-        lines = Instance.compose_sent(self.chars_s, self.bichars_s,
-                                      self.labels_s_predict)
+        lines = Instance.compose_sent(self.chars_s,
+                                      self.bichars_s,
+                                      self.labels_s_pred)
         for line in lines:
             out_file.write(line)
         out_file.write('\n')
@@ -43,19 +44,19 @@ class Instance(object):
         for (i, line) in enumerate(lines):
             tokens = line.split()
             assert(len(tokens) == 3)
-            self.chars_s[i], self.bichars_s[i], self.labels_s[i] = tokens[0], tokens[1], tokens[2]
+            self.chars_s[i], self.bichars_s[i], self.labels_s[i] = tokens
 
     def evaluate(self):
-        preds = self.get_spans(self.labels_s_predict)
+        preds = self.get_spans(self.labels_s_pred)
         golds = self.get_spans(self.labels_s)
 
         gold_num = len(golds)
         pred_num = len(preds)
         correct_num = len(golds & preds)
-        total_labels = len(self.labels_i)
+        total_labels = len(self.labels_s)
         correct_labels = sum(i == j
                              for i, j in zip(self.labels_i.tolist(),
-                                             self.labels_i_predict.tolist()))
+                                             self.labels_i_pred.tolist()))
 
         return gold_num, pred_num, correct_num, total_labels, correct_labels
 
