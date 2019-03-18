@@ -4,7 +4,7 @@ import os
 
 import torch
 import torch.nn as nn
-from src.common import padding_idx
+from src.common import pad_index
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
@@ -61,7 +61,7 @@ class CWSModel(nn.Module):
         self.cuda()
 
     def forward(self, chars, bichars):
-        mask = chars.ne(padding_idx)
+        mask = chars.ne(pad_index)
         sen_lens = mask.sum(1)
 
         emb_ch = self.emb_chars(chars)
