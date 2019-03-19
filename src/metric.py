@@ -42,12 +42,12 @@ class Metric(object):
 
     def compute_and_output(self, dataset, eval_cnt):
         self.time_gap = float(time.time() - self.start_time)
-        print("\n%30s(%5d): loss=%.3f accuracy=%.3f, " %
-              (dataset.filename_short, eval_cnt,
-               self.loss_accumulated, self.accuracy), end='')
+        print("\n%30s(%5d): loss=%.3f " %
+              (dataset.filename_short, eval_cnt, self.loss_accumulated), end='')
         if self.gold_num > 0:
             print("precision=%.3f, recall=%.3f, fscore=%.3f, " %
                   (self.precision, self.recall, self.fscore), end='')
+        print("accuracy=%.3f, " % self.accuracy, end='')
         print("%d sentences, time=%.3f (%.1f %.1f %.1f %.1f) [%s]" %
               (self.sent_num, self.time_gap, self.forward_time, self.loss_time,
                self.backward_time, self.decode_time,
