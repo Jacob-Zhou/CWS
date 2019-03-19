@@ -6,7 +6,7 @@ import time
 
 import torch
 import torch.nn as nn
-from src.common import padding_idx, padding_str, unknown_idx, unknown_str
+from src.common import eos, pad, bos, unk
 from src.cws_model import CWSModel
 from src.metric import Metric
 from src.optimizer import Optimizer
@@ -15,6 +15,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 
 class CWS(object):
+
     def __init__(self, conf):
         self._conf = conf
         self._device = torch.device(self._conf.device)
@@ -157,8 +158,19 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, one_batch):
         print('.', end='')
+        # shape of the following tensors:
+        # chars: [batch_size, seq_len + 2]
+        # bichars: [batch_size, seq_len + 2]
+        # labels: [batch_size, seq_len]
+        # the bos and eos tokens are added to inputs of the model
         chars, bichars, labels = self.compose_batch_data(one_batch)
-        mask = chars.ne(padding_idx)
+        # ignore all pad, bos, and eos tokens
+        mask = chars.ne(self._char_dict.pad_index)
+        mask &= chars.ne(self._char_dict.bos_index)
+        mask &= chars.ne(self._char_dict.eos_index)
+        # cut off the first and last ones
+        mask = mask[:, 1:-1]
+
         time1 = time.time()
         mlp_out = self._cws_model(chars, bichars)
         time2 = time.time()
@@ -248,11 +260,13 @@ class CWS(object):
                 self._label_dict.add_key_into_counter(inst.labels_s[i])
 
     def numeralize_all_instances(self, dataset, label_dict):
+        # the bos and eos tokens are added to the sequences of each inst here,
+        # acting as representations of the beginning and end of the sentence
         for inst in dataset.all_inst:
             inst.chars_i = torch.tensor([self._char_dict.get_id(i)
-                                         for i in inst.chars_s])
+                                         for i in [bos] + inst.chars_s + [eos]])
             inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
-                                           for i in inst.bichars_s])
+                                           for i in [bos] + inst.bichars_s + [eos]])
             inst.labels_i = torch.tensor([self._label_dict.get_id(i)
                                           for i in inst.labels_s])
 
@@ -260,9 +274,9 @@ class CWS(object):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
-                             default_keys=[padding_str, unknown_str])
+                             default_keys=[pad, unk, bos, eos])
         self._bichar_dict.load(path + self._bichar_dict.name,
-                               default_keys=[padding_str, unknown_str])
+                               default_keys=[pad, unk, bos, eos])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
 
@@ -299,8 +313,8 @@ class CWS(object):
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
-        inst.labels_i_predict = pred
-        inst.labels_s_predict = [label_dict.get_str(i) for i in pred.tolist()]
+        inst.labels_i_pred = pred
+        inst.labels_s_pred = [label_dict.get_str(i) for i in pred.tolist()]
 
     @staticmethod
     def compute_accuracy_one_inst(inst, eval_metrics, training):

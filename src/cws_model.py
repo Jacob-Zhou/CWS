@@ -47,13 +47,16 @@ class CWSModel(nn.Module):
                                   num_layers=self._conf.lstm_layer_num,
                                   dropout=self._conf.lstm_dropout)
 
-        self.mlp_layer = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
+        self.ffn = nn.Linear(self._conf.lstm_hidden_dim*2,
+                             label_dict_size)
         self.log_softmax = nn.LogSoftmax(dim=-1)
         self.loss_func = nn.NLLLoss()
         print('init models done')
 
     def reset_parameters(self):
-        nn.init.xavier_uniform_(self.mlp_layer.weight)
+        # nn.init.xavier_uniform_(self.ffn_lstm.weight)
+        # nn.init.xavier_uniform_(self.ffn_span.weight)
+        nn.init.xavier_uniform_(self.ffn.weight)
 
     def put_models_on_gpu_if_need(self):
         if not self._use_cuda:
@@ -74,8 +77,20 @@ class CWSModel(nn.Module):
 
         x, _ = self.lstm_layer(x)
         x, _ = pad_packed_sequence(x, True)
-        x = x[inverse_indices]
-        x = self.mlp_layer(x)
+        x = x[inverse_indices].transpose(0, 1)
+
+        x_f, x_b = x.chunk(2, dim=-1)
+        # the representation of the span (i, j) is the concatenatation of
+        # (f_j − f_i) and (b_i − b_j)
+        x_f = x_f[1:-1] - x_f[:-2]
+        x_b = x_b[1:-1] - x_b[2:]
+
+        # x_lstm = x[1:-1].transpose(0, 1)
+        # x_span = torch.cat([x_f, x_b], -1).transpose(0, 1)
+
+        # x = self.ffn_lstm(x_lstm) + self.ffn_span(x_span)
+        x = torch.cat([x[1:-1], x_f, x_b], -1).transpose(0, 1)
+        x = self.ffn(x)
         x = self.log_softmax(x)
 
         return x
