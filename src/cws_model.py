@@ -85,10 +85,6 @@ class CWSModel(nn.Module):
         x_f = x_f[1:-1] - x_f[:-2]
         x_b = x_b[1:-1] - x_b[2:]
 
-        # x_lstm = x[1:-1].transpose(0, 1)
-        # x_span = torch.cat([x_f, x_b], -1).transpose(0, 1)
-
-        # x = self.ffn_lstm(x_lstm) + self.ffn_span(x_span)
         x = torch.cat([x[1:-1], x_f, x_b], -1).transpose(0, 1)
         x = self.ffn(x)
         x = self.log_softmax(x)

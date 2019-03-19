@@ -172,10 +172,10 @@ class CWS(object):
         mask = mask[:, 1:-1]
 
         time1 = time.time()
-        mlp_out = self._cws_model(chars, bichars)
+        out = self._cws_model(chars, bichars)
         time2 = time.time()
 
-        label_loss = self._cws_model.get_loss(mlp_out, labels, mask)
+        label_loss = self._cws_model.get_loss(out, labels, mask)
         self._eval_metrics.loss_accumulated += label_loss.item()
         time3 = time.time()
 
@@ -186,7 +186,7 @@ class CWS(object):
             self._optimizer.step()
         time4 = time.time()
 
-        self.decode(mlp_out, one_batch, mask)
+        self.decode(out, one_batch, mask)
         time5 = time.time()
 
         self._eval_metrics.sent_num += len(one_batch)
