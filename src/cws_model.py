@@ -21,7 +21,7 @@ class CWSModel(nn.Module):
         self.emb_bichars = None
         self.emb_drop_layer = None
         self.lstm_layer = None
-        self.mlp_layer = None
+        self.ffn = None
         self.loss_func = None
 
     @property
@@ -54,8 +54,6 @@ class CWSModel(nn.Module):
         print('init models done')
 
     def reset_parameters(self):
-        # nn.init.xavier_uniform_(self.ffn_lstm.weight)
-        # nn.init.xavier_uniform_(self.ffn_span.weight)
         nn.init.xavier_uniform_(self.ffn.weight)
 
     def put_models_on_gpu_if_need(self):
@@ -91,8 +89,8 @@ class CWSModel(nn.Module):
 
         return x
 
-    def get_loss(self, mlp_out, target, mask):
-        return self.loss_func(mlp_out[mask], target[mask])
+    def get_loss(self, out, target, mask):
+        return self.loss_func(out[mask], target[mask])
 
     def load_model(self, path, eval_num):
         path = os.path.join(path, 'models.%s.%d' % (self.name, eval_num))
