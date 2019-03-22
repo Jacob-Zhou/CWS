@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import random
 import sys
 import time
 
@@ -23,6 +24,7 @@ if __name__ == '__main__':
     # cudaNo = conf.cudaNo
     # os.environ["CUDA_VISIBLE_DEVICES"] = cudaNo
 
+    random.seed(args.seed)
     torch.manual_seed(args.seed)
     print('random_seeds = ', args.seed)
 
