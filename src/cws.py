@@ -226,10 +226,10 @@ class CWS(object):
             delta = emit.new_zeros(T, B, N)
             paths = emit.new_zeros(T, B, N, dtype=torch.long)
 
-            delta[0] = self._strans + emit[0]  # [B, N]
+            delta[0] = self._strans + emit[0]  # [batch_size, n_labels]
 
             for i in range(1, T):
-                # [B, N, N]
+                # [batch_size, n_labels, n_labels]
                 scores = self._trans.unsqueeze(0) + delta[i - 1].unsqueeze(-1)
                 scores, paths[i] = torch.max(scores, dim=1)
                 delta[i] = scores + emit[i]
@@ -249,8 +249,8 @@ class CWS(object):
 
         for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred, self._label_dict)
-            CWS.compute_accuracy_one_inst(
-                inst, self._eval_metrics, self.training)
+            CWS.compute_accuracy_one_inst(inst, self._eval_metrics,
+                                          self.training)
 
     def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
