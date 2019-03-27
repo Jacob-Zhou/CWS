@@ -240,27 +240,28 @@ class CWS(object):
 
             # [seq_len, batch_size, n_labels]
             shortcuts[0] = emit[0] + self._strans
-            delta[0] = shortcuts[0, 0]
 
             for i in range(1, seq_len):
+                delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
                 scores = self._trans + delta[i - 1].unsqueeze(-1)
-                scores, labels[i] = torch.max(scores, dim=1)
+                scores, labels[i] = scores.max(dim=1)
                 shortcuts[i] = scores + emit[i]
-                delta[i], splits[i] = torch.max(shortcuts[:i+1, i], dim=0)
+            delta[-1], splits[-1] = shortcuts[:, -1].max(dim=0)
 
             predicts = []
             for i, length in enumerate(lens):
                 # trace the best tag sequence from the end of the sentence
                 # add end transition scores to the total scores before tracing
                 prev = torch.argmax(delta[length - 1, i] + self._etrans)
-                split = splits[length - 1, i, prev]
+                begin, end = splits[length - 1, i, prev], length
 
-                predict, word_lens = [prev], [length - split]
-                while split > 0:
-                    prev = labels[split - 1, i, prev]
+                predict, word_lens = [prev], [end - begin]
+                while begin > 0:
+                    prev = labels[begin, i, prev]
                     predict.append(prev)
-                    word_lens.append(split - splits[split - 1, i, prev])
-                    split = splits[split - 1, i, prev]
+                    end = begin
+                    begin = splits[begin - 1, i, prev]
+                    word_lens.append(end - begin)
                 predict = [Instance.recover(label, word_length)
                            for label, word_length in zip(predict, word_lens)]
                 predict = [label for pred in reversed(predict)
