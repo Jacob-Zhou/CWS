@@ -223,7 +223,7 @@ class CWS(object):
     def decode(self, emit, insts, mask):
         if self.training:
             lengths = [len(i) for i in insts]
-            predicts = torch.split(emit.argmax(-1)[mask], lengths)
+            predicts = torch.split(emit[mask].argmax(-1), lengths)
         else:
             emit = emit.permute(1, 2, 0, 3)
             seq_len, batch_size, n_labels = emit.shape[1:]
