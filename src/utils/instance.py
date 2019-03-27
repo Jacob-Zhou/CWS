@@ -77,3 +77,21 @@ class Instance(object):
             spans.add((i, j))
 
         return spans
+
+    @classmethod
+    def recover(cls, label, length):
+        # the labels must be sorted, that is [B, E, M, S]
+        if length < 2:
+            return [label]
+        # [B] -> [B, M, ..., M]
+        elif label == 0:
+            return [0] + [2 for _ in range(length - 1)]
+        # [E] -> [M, M, ..., E]
+        elif label == 1:
+            return [2 for _ in range(length - 1)] + [1]
+        # [M] -> [M, M, ..., M]
+        elif label == 2:
+            return [2 for _ in range(length)]
+        # [S] -> [B, M, ..., E]
+        elif label == 3:
+            return [0] + [2 for _ in range(length - 2)] + [1]

@@ -10,7 +10,7 @@ from src.common import eos, pad, bos, unk
 from src.cws_model import CWSModel
 from src.metric import Metric
 from src.optimizer import Optimizer
-from src.utils import Dataset, VocabDict
+from src.utils import Dataset, VocabDict, Instance
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -173,9 +173,14 @@ class CWS(object):
 
         time1 = time.time()
         out = self._cws_model(chars, bichars)
+        subword_mask = mask.new_ones(out.shape[:-1])
+        subword_mask &= torch.ones_like(subword_mask[0]).tril()
+        subword_mask &= torch.ones_like(subword_mask[0]).triu()
+        subword_mask &= mask.unsqueeze(-1)
+        out = out.masked_fill(~subword_mask.unsqueeze(-1), 0)
         time2 = time.time()
 
-        label_loss = self._cws_model.get_loss(out, labels, mask)
+        label_loss = self._cws_model.get_loss(out[subword_mask], labels[mask])
         self._eval_metrics.loss_accumulated += label_loss.item()
         time3 = time.time()
 
@@ -186,7 +191,7 @@ class CWS(object):
             self._optimizer.step()
         time4 = time.time()
 
-        self.decode(out, one_batch, mask)
+        self.decode(out, one_batch, subword_mask)
         time5 = time.time()
 
         self._eval_metrics.sent_num += len(one_batch)
@@ -220,32 +225,48 @@ class CWS(object):
             lengths = [len(i) for i in insts]
             predicts = torch.split(emit.argmax(-1)[mask], lengths)
         else:
-            emit, mask = emit.transpose(0, 1), mask.t()
-            T, B, N = emit.shape
-            lens = mask.sum(dim=0)
-            delta = emit.new_zeros(T, B, N)
-            paths = emit.new_zeros(T, B, N, dtype=torch.long)
+            emit = emit.permute(1, 2, 0, 3)
+            seq_len, batch_size, n_labels = emit.shape[1:]
+            lens = mask.sum(dim=(1, 2)).tolist()
 
-            delta[0] = self._strans + emit[0]  # [batch_size, n_labels]
+            # [seq_len, batch_size, n_labels]
+            delta = emit.new_zeros(seq_len, batch_size, n_labels)
+            labels = emit.new_zeros(seq_len, batch_size, n_labels).long()
+            splits = emit.new_zeros(seq_len, batch_size, n_labels).long()
 
-            for i in range(1, T):
-                # [batch_size, n_labels, n_labels]
-                scores = self._trans.unsqueeze(0) + delta[i - 1].unsqueeze(-1)
-                scores, paths[i] = torch.max(scores, dim=1)
-                delta[i] = scores + emit[i]
+            # only records of the upper triangular part are valid shortcuts
+            # [seq_len, seq_len, batch_size, n_labels]
+            shortcuts = torch.zeros_like(emit)
+
+            # [seq_len, batch_size, n_labels]
+            shortcuts[0] = emit[0] + self._strans
+            delta[0] = shortcuts[0, 0]
+
+            for i in range(1, seq_len):
+                scores = self._trans + delta[i - 1].unsqueeze(-1)
+                scores, labels[i] = torch.max(scores, dim=1)
+                shortcuts[i] = scores + emit[i]
+                delta[i], splits[i] = torch.max(shortcuts[:i+1, i], dim=0)
 
             predicts = []
             for i, length in enumerate(lens):
                 # trace the best tag sequence from the end of the sentence
                 # add end transition scores to the total scores before tracing
                 prev = torch.argmax(delta[length - 1, i] + self._etrans)
+                split = splits[length - 1, i, prev]
 
-                predict = [prev]
-                for j in reversed(range(1, length)):
-                    prev = paths[j, i, prev]
+                predict, word_lens = [prev], [length - split]
+                while split > 0:
+                    prev = labels[split - 1, i, prev]
                     predict.append(prev)
-                # flip the predicted sequence before appending it to the list
-                predicts.append(paths.new_tensor(predict).flip(0))
+                    word_lens.append(split - splits[split - 1, i, prev])
+                    split = splits[split - 1, i, prev]
+                predict = [Instance.recover(label, word_length)
+                           for label, word_length in zip(predict, word_lens)]
+                predict = [label for pred in reversed(predict)
+                           for label in pred]
+                predicts.append(labels.new_tensor(predict))
+                assert len(predict) == length
 
         for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred, self._label_dict)

@@ -47,7 +47,7 @@ class CWSModel(nn.Module):
                                   num_layers=self._conf.lstm_layer_num,
                                   dropout=self._conf.lstm_dropout)
 
-        self.ffn = nn.Linear(self._conf.lstm_hidden_dim*2,
+        self.ffn = nn.Linear(self._conf.lstm_hidden_dim,
                              label_dict_size)
         self.log_softmax = nn.LogSoftmax(dim=-1)
         self.loss_func = nn.NLLLoss()
@@ -63,34 +63,32 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars):
         mask = chars.ne(pad_index)
-        sen_lens = mask.sum(1)
+        lens = mask.sum(1)
 
         emb_ch = self.emb_chars(chars)
         emb_bich = self.emb_bichars(bichars)
         x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich), -1))
 
-        sorted_lens, sorted_indices = torch.sort(sen_lens, descending=True)
+        sorted_lens, sorted_indices = torch.sort(lens, descending=True)
         inverse_indices = sorted_indices.argsort()
         x = pack_padded_sequence(x[sorted_indices], sorted_lens, True)
 
         x, _ = self.lstm_layer(x)
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices].transpose(0, 1)
-
+        x = x.unsqueeze(1) - x
         x_f, x_b = x.chunk(2, dim=-1)
-        # the representation of the span (i, j) is the concatenatation of
-        # (f_j − f_i) and (b_i − b_j)
-        x_f = x_f[1:-1] - x_f[:-2]
-        x_b = x_b[1:-1] - x_b[2:]
 
-        x = torch.cat([x[1:-1], x_f, x_b], -1).transpose(0, 1)
-        x = self.ffn(x)
+        x_f = x_f[:-2, 1:-1].permute(2, 1, 0, 3)
+        x_b = x_b[1:-1, 2:].permute(2, 0, 1, 3)
+        x_span = torch.cat([x_f, x_b], -1)
+        x = self.ffn(x_span)
         x = self.log_softmax(x)
 
         return x
 
-    def get_loss(self, out, target, mask):
-        return self.loss_func(out[mask], target[mask])
+    def get_loss(self, out, target):
+        return self.loss_func(out, target)
 
     def load_model(self, path, eval_num):
         path = os.path.join(path, 'models.%s.%d' % (self.name, eval_num))
