@@ -177,7 +177,7 @@ class CWS(object):
         subword_mask &= torch.ones_like(subword_mask[0]).tril()
         subword_mask &= torch.ones_like(subword_mask[0]).triu()
         subword_mask &= mask.unsqueeze(-1)
-        out = out.masked_fill(~subword_mask.unsqueeze(-1), 0)
+        out = out.masked_fill(~subword_mask.unsqueeze(-1), float('-inf'))
         time2 = time.time()
 
         label_loss = self._cws_model.get_loss(out[subword_mask], labels[mask])
