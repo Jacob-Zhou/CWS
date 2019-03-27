@@ -79,7 +79,7 @@ class CWSModel(nn.Module):
         x = x.unsqueeze(1) - x
         x_f, x_b = x.chunk(2, dim=-1)
 
-        x_f = x_f[:-2, 1:-1].permute(2, 1, 0, 3)
+        x_f = x_f[1:-1, :-2].permute(2, 1, 0, 3)
         x_b = x_b[1:-1, 2:].permute(2, 0, 1, 3)
         x_span = torch.cat([x_f, x_b], -1)
         x = self.ffn(x_span)
