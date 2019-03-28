@@ -234,7 +234,9 @@ class CWS(object):
             labels = emit.new_zeros(seq_len, batch_size, n_labels).long()
             splits = emit.new_zeros(seq_len, batch_size, n_labels).long()
 
-            # only records of the upper triangular part are valid shortcuts
+            # shortcuts[i] corresponds to max probs of all the sequences
+            # containing subword starting from i
+            # only the upper triangular part are valid shortcuts
             # [seq_len, seq_len, batch_size, n_labels]
             shortcuts = torch.zeros_like(emit)
 
@@ -242,6 +244,9 @@ class CWS(object):
             shortcuts[0] = emit[0] + self._strans
 
             for i in range(1, seq_len):
+                # for all sequences consisting of a subsequence and a
+                # subword (starting at 0, 1, ..., i-1 and ending at i), choose
+                # the one with max probs and record split point of its subword
                 delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
                 scores = self._trans + delta[i - 1].unsqueeze(-1)
                 scores, labels[i] = scores.max(dim=1)
@@ -257,6 +262,7 @@ class CWS(object):
 
                 predict, word_lens = [prev], [end - begin]
                 while begin > 0:
+                    # jump to the last split point and continue tracing
                     prev = labels[begin, i, prev]
                     predict.append(prev)
                     end = begin
