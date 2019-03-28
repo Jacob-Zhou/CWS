@@ -235,7 +235,7 @@ class CWS(object):
             splits = emit.new_zeros(seq_len, batch_size, n_labels).long()
 
             # shortcuts[i] corresponds to max probs of all the sequences
-            # containing subword starting from i
+            # containing subword starting at i
             # only the upper triangular part are valid shortcuts
             # [seq_len, seq_len, batch_size, n_labels]
             shortcuts = torch.zeros_like(emit)
