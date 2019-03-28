@@ -265,8 +265,7 @@ class CWS(object):
                     # jump to the last split point and continue tracing
                     prev = labels[begin, i, prev]
                     predict.append(prev)
-                    end = begin
-                    begin = splits[begin - 1, i, prev]
+                    begin, end = splits[begin - 1, i, prev], begin
                     word_lens.append(end - begin)
                 predict = [Instance.recover(label, word_length)
                            for label, word_length in zip(predict, word_lens)]
