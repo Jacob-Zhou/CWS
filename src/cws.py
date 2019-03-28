@@ -241,7 +241,7 @@ class CWS(object):
             shortcuts = torch.zeros_like(emit)
 
             # [seq_len, batch_size, n_labels]
-            shortcuts[0] = emit[0] + self._strans
+            shortcuts[0] = self._strans + emit[0]
 
             for i in range(1, seq_len):
                 # for all sequences consisting of a subsequence and a
@@ -272,7 +272,6 @@ class CWS(object):
                 predict = [label for pred in reversed(predict)
                            for label in pred]
                 predicts.append(labels.new_tensor(predict))
-                assert len(predict) == length
 
         for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred, self._label_dict)
