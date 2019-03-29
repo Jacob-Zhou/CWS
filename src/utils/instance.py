@@ -5,8 +5,8 @@ import torch
 
 class Instance(object):
 
-    def __init__(self, id, lines):
-        self.id = id
+    def __init__(self, inst_id, lines):
+        self.inst_id = inst_id
         n = len(lines)
         self.chars_s = [''] * n
         self.bichars_s = [''] * n
