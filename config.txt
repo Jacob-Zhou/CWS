@@ -8,8 +8,8 @@ dict_dir = exp/ctb6/
 model_dir = exp/ctb6/
 inst_num_max = -1
 max_bucket_num = 72
-sent_num_one_batch = 50
-char_num_one_batch = 2500
+sent_batch_size = 50
+char_batch_size = 2500
 
 [Test]
 model_eval_num = 0
@@ -26,6 +26,7 @@ patience = 10
 
 [Network]
 char_emb_dim = 100
+subword_emb_dim = 100
 lstm_layer_num = 2
 emb_dropout = 0.5
 lstm_hidden_dim = 300

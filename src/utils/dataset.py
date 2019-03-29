@@ -15,8 +15,8 @@ class Dataset(object):
 
     def __init__(self, filename,
                  max_bucket_num=80,
-                 char_num_one_batch=5000,
-                 sent_num_one_batch=200,
+                 char_batch_size=5000,
+                 sent_batch_size=200,
                  inst_num_max=-1,
                  min_len=1,
                  shuffle=False):
@@ -45,9 +45,9 @@ class Dataset(object):
               (self._filename_short, len(self), self.char_num_total))
 
         self._sent_index = 0
-        self._char_num_one_batch = char_num_one_batch
-        self._sent_num_one_batch = sent_num_one_batch
-        assert self._char_num_one_batch > 0 or self._sent_num_one_batch > 0
+        self._char_batch_size = char_batch_size
+        self._sent_batch_size = sent_batch_size
+        assert self._char_batch_size > 0 or self._sent_batch_size > 0
 
         self._bucket_num = -1
         self._use_bucket = (max_bucket_num > 1)
@@ -56,13 +56,13 @@ class Dataset(object):
         self._shuffle = shuffle
 
         if self._use_bucket:
-            assert (self._char_num_one_batch > 0)
+            assert (self._char_batch_size > 0)
             len_counter = Counter([len(inst) for inst in self.all_inst])
 
             # Automatically decide the bucket num according to the data
             self._bucket_num = min(max_bucket_num,
                                    math.ceil(len(len_counter)/1.5),
-                                   math.ceil(self.char_num_total/(2*self._char_num_one_batch)))
+                                   math.ceil(self.char_num_total/(2*self._char_batch_size)))
 
             assert self._bucket_num > 0
 
@@ -79,7 +79,7 @@ class Dataset(object):
             for (i, max_len) in enumerate(max_len_buckets):
                 inst_num = len(buckets[i])
                 batch_num_to_provide = max(
-                    1, round(inst_num * max_len / self._char_num_one_batch)
+                    1, round(inst_num * max_len / self._char_batch_size)
                 )
                 print("i, inst_num, max_len, batch_num_to_provide, batch_num_total = ",
                       i, inst_num, max_len, batch_num_to_provide, batch_num_total)
@@ -148,7 +148,7 @@ class Dataset(object):
 
         char_num_accum, one_batch = 0, []
         for inst in self._instances[self._sent_index:]:
-            if char_num_accum + len(inst) > self._char_num_one_batch + 25:
+            if char_num_accum + len(inst) > self._char_batch_size + 25:
                 return one_batch  # not include this instance
             one_batch.append(inst)
             char_num_accum += len(inst)

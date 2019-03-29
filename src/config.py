@@ -75,12 +75,12 @@ class Configurable(object):
         return not self.use_labeled_crf_loss and self._conf.getint('Run', 'use_unlabeled_crf_loss') != 0
 
     @property
-    def sent_num_one_batch(self):
-        return self._conf.getint('Run', 'sent_num_one_batch')
+    def sent_batch_size(self):
+        return self._conf.getint('Run', 'sent_batch_size')
 
     @property
-    def char_num_one_batch(self):
-        return self._conf.getint('Run', 'char_num_one_batch')
+    def char_batch_size(self):
+        return self._conf.getint('Run', 'char_batch_size')
 
     @property
     def max_bucket_num(self):
@@ -155,6 +155,10 @@ class Configurable(object):
     @property
     def char_emb_dim(self):
         return self._conf.getint('Network', 'char_emb_dim')
+
+    @property
+    def subword_emb_dim(self):
+        return self._conf.getint('Network', 'subword_emb_dim')
 
     @property
     def emb_dropout(self):
