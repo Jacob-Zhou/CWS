@@ -32,6 +32,10 @@ class VocabDict(object):
             return self._pad_index
 
     @property
+    def unk_index(self):
+        return self._unk_index
+
+    @property
     def bos_index(self):
         if self._bos_index < 0:
             raise AttributeError
