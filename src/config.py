@@ -116,10 +116,6 @@ class Configurable(object):
         return self._conf.getint('Test', 'model_eval_num')
 
     @property
-    def test_files(self):
-        return self._conf.get('Train', 'test_files')
-
-    @property
     def train_files(self):
         # use ; to split multiple training datasets
         return self._conf.get('Train', 'train_files')
@@ -127,6 +123,14 @@ class Configurable(object):
     @property
     def dev_files(self):
         return self._conf.get('Train', 'dev_files')
+
+    @property
+    def test_files(self):
+        return self._conf.get('Train', 'test_files')
+
+    @property
+    def emb_subword_file(self):
+        return self._conf.get('Train', 'emb_subword_file')
 
     @property
     def is_dictionary_exist(self):
@@ -139,6 +143,10 @@ class Configurable(object):
     @property
     def save_model_after_eval_num(self):
         return self._conf.getint('Train', 'save_model_after_eval_num')
+
+    @property
+    def max_word_length(self):
+        return self._conf.getint('Train', 'max_word_length')
 
     @property
     def patience(self):

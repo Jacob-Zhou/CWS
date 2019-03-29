@@ -19,14 +19,16 @@ data_dir = data
 train_files = %(data_dir)s/ctb6/train.conll
 dev_files = %(data_dir)s/ctb6/dev.conll
 test_files = %(data_dir)s/ctb6/test.conll
+emb_subword_file = %(data_dir)s/Giga-coarse-fine.dict.txt
 is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 50
+max_word_length = 20
 patience = 10
 
 [Network]
 char_emb_dim = 100
-subword_emb_dim = 100
+subword_emb_dim = 50
 lstm_layer_num = 2
 emb_dropout = 0.5
 lstm_hidden_dim = 300
