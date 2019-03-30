@@ -93,8 +93,8 @@ class CWSModel(nn.Module):
 
         x = torch.cat([x_span, emb_subword], dim=-1)
         x = self.ffn(x)
-        x = x.masked_fill_(~subword_mask.unsqueeze(-1), 0)
         x = self.log_softmax(x)
+        x = x.masked_fill(~subword_mask.unsqueeze(-1), float('-inf'))
 
         return x
 

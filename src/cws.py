@@ -95,7 +95,7 @@ class CWS(object):
                            self._test_datasets,
                            inst_num_max=self._conf.inst_num_max)
 
-        print('numeralizing all instances in all datasets')
+        print('numericalizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + self._test_datasets:
             self.numericalize_all_instances(dataset)
 
@@ -175,7 +175,6 @@ class CWS(object):
         # ignore all pad an unk tokens in subwords
         subword_mask = subwords.ne(self._subword_dict.unk_index)
         subword_mask &= subwords.ne(self._subword_dict.pad_index)
-        print([self._label_dict.get_str(i) for i in sublabels[subword_mask]])
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
