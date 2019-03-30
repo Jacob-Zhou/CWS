@@ -4,6 +4,18 @@ import torch
 
 
 class Instance(object):
+    #         B, E, M, S
+    #      B [B, S, B, S]
+    #      E [M, E, M, E]
+    #      M [M, E, M, E]
+    #      S [B, S, B, S]
+    # the mapping table of mapping label sequnece
+    # of a subword to a single label
+    #        [B, E, M, S]
+    TABLE = [[0, 3, 0, 3],  # B
+             [2, 1, 2, 1],  # E
+             [2, 1, 2, 1],  # M
+             [0, 3, 0, 3]]  # S
 
     def __init__(self, inst_id, lines):
         self.inst_id = inst_id
@@ -95,3 +107,7 @@ class Instance(object):
         # [S] -> [B, M, ..., E]
         elif label == 3:
             return [0] + [2 for _ in range(length - 2)] + [1]
+
+    @classmethod
+    def extract(cls, labels):
+        return cls.TABLE[labels[0]][labels[-1]]
