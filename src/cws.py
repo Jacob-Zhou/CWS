@@ -6,11 +6,11 @@ import time
 
 import torch
 import torch.nn as nn
-from src.common import eos, pad, bos, unk
-from src.cws_model import CWSModel
+from src.common import bos, eos, pad, unk
+from src.model import CWSModel
 from src.metric import Metric
 from src.optimizer import Optimizer
-from src.utils import Dataset, VocabDict, Instance
+from src.utils import Dataset, Embedding, Instance, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -35,8 +35,10 @@ class CWS(object):
         self._train_datasets = []
         self._dev_datasets = []
         self._test_datasets = []
+        self._pretrained = None
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
+        self._subword_dict = VocabDict('subwords')
         # there may be more than one label dictionaries
         self._label_dict = VocabDict('labels')
 
@@ -53,62 +55,67 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._eval_metrics = Metric()
-        self._cws_model = CWSModel('ws', conf, self._use_cuda)
+        self._model = CWSModel('ws', conf, self._use_cuda)
 
     def run(self):
+        # get pretrained subword embedding and corresponding vocabularies
+        self._pretrained = Embedding.load(self._conf.emb_subword_file)
         if self._conf.is_train:
-            self.open_and_load_datasets(self._conf.train_files,
-                                        self._train_datasets,
-                                        inst_num_max=self._conf.inst_num_max,
-                                        shuffle=True)
+            self.load_datasets(self._conf.train_files,
+                               self._train_datasets,
+                               inst_num_max=self._conf.inst_num_max,
+                               shuffle=True)
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 for dataset in self._train_datasets:
                     self.create_dictionaries(dataset)
+
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
 
-                self._cws_model.init_models(len(self._char_dict),
-                                            len(self._bichar_dict),
-                                            len(self._label_dict))
-                self._cws_model.reset_parameters()
-                self._cws_model.save_model(self._conf.model_dir, 0)
+                self._model.init_models(len(self._char_dict),
+                                        len(self._bichar_dict),
+                                        len(self._subword_dict),
+                                        len(self._label_dict))
+                self._model.reset_parameters()
+                self._model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
-        self._cws_model.init_models(len(self._char_dict),
-                                    len(self._bichar_dict),
-                                    len(self._label_dict))
+        self._model.init_models(len(self._char_dict),
+                                len(self._bichar_dict),
+                                len(self._subword_dict),
+                                len(self._label_dict))
 
         if self._conf.is_train:
-            self.open_and_load_datasets(self._conf.dev_files,
-                                        self._dev_datasets,
-                                        inst_num_max=self._conf.inst_num_max)
+            self.load_datasets(self._conf.dev_files,
+                               self._dev_datasets,
+                               inst_num_max=self._conf.inst_num_max)
 
-        self.open_and_load_datasets(self._conf.test_files,
-                                    self._test_datasets,
-                                    inst_num_max=self._conf.inst_num_max)
+        self.load_datasets(self._conf.test_files,
+                           self._test_datasets,
+                           inst_num_max=self._conf.inst_num_max)
 
         print('numeralizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + self._test_datasets:
-            self.numeralize_all_instances(dataset, self._label_dict)
+            self.numericalize_all_instances(dataset)
 
         if self._conf.is_train:
-            self._cws_model.load_model(self._conf.model_dir, 0)
+            self._model.load_model(self._conf.model_dir, 0)
         else:
-            self._cws_model.load_model(self._conf.model_dir,
-                                       self._conf.model_eval_num)
+            self._model.load_model(self._conf.model_dir,
+                                   self._conf.model_eval_num)
 
         if self._use_cuda:
-            # self._cws_model.cuda()
-            self._cws_model.to(self._cuda_device)
+            # self._model.cuda()
+            self._model.to(self._cuda_device)
             self._strans = self._strans.to(self._cuda_device)
             self._etrans = self._etrans.to(self._cuda_device)
             self._trans = self._trans.to(self._cuda_device)
-        print(self._cws_model)
+        print(self._model)
 
         if self._conf.is_train:
             assert self._optimizer is None
-            self._optimizer = Optimizer(self._cws_model.parameters(),
+            self._optimizer = Optimizer(self._model.parameters(),
                                         self._conf)
             self.train()
             return
@@ -142,8 +149,8 @@ class CWS(object):
                 if eval_cnt > self._conf.save_model_after_eval_num:
                     if best_eval_cnt > self._conf.save_model_after_eval_num:
                         self.del_model(self._conf.model_dir, best_eval_cnt)
-                    self._cws_model.save_model(self._conf.model_dir,
-                                               eval_cnt)
+                    self._model.save_model(self._conf.model_dir,
+                                           eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
                                   output_filename=None)
                     self._eval_metrics.compute_and_output(self._test_datasets[0],
@@ -156,45 +163,38 @@ class CWS(object):
             if best_eval_cnt + self._conf.patience <= eval_cnt:
                 break
 
-    def train_or_eval_one_batch(self, one_batch):
+    def train_or_eval_one_batch(self, insts):
         print('.', end='')
         # shape of the following tensors:
         # chars: [batch_size, seq_len + 2]
         # bichars: [batch_size, seq_len + 2]
-        # labels: [batch_size, seq_len]
+        # subwords: [batch_size, seq_len, max_word_length]
+        # sublabels: [batch_size, seq_len, max_word_length]
         # the bos and eos tokens are added to inputs of the model
-        chars, bichars, labels = self.compose_batch_data(one_batch)
-        # ignore all pad, bos, and eos tokens
-        mask = chars.ne(self._char_dict.pad_index)
-        mask &= chars.ne(self._char_dict.bos_index)
-        mask &= chars.ne(self._char_dict.eos_index)
-        # cut off the first and last ones
-        mask = mask[:, 1:-1]
-
+        chars, bichars, subwords, sublabels = self.compose_batch(insts)
+        # ignore all pad an unk tokens in subwords
+        subword_mask = subwords.ne(self._subword_dict.unk_index)
+        subword_mask &= subwords.ne(self._subword_dict.pad_index)
+        print([self._label_dict.get_str(i) for i in sublabels[subword_mask]])
         time1 = time.time()
-        out = self._cws_model(chars, bichars)
-        subword_mask = mask.new_ones(out.shape[:-1])
-        subword_mask &= torch.ones_like(subword_mask[0]).tril()
-        subword_mask &= torch.ones_like(subword_mask[0]).triu()
-        subword_mask &= mask.unsqueeze(-1)
-        out = out.masked_fill(~subword_mask.unsqueeze(-1), float('-inf'))
+        out = self._model(chars, bichars, subwords)
         time2 = time.time()
 
-        label_loss = self._cws_model.get_loss(out[subword_mask], labels[mask])
+        label_loss = self._model.get_loss(out, sublabels, subword_mask)
         self._eval_metrics.loss_accumulated += label_loss.item()
         time3 = time.time()
 
         if self.training:
             label_loss.backward()
-            nn.utils.clip_grad_norm_(self._cws_model.parameters(),
+            nn.utils.clip_grad_norm_(self._model.parameters(),
                                      max_norm=self._conf.clip)
             self._optimizer.step()
         time4 = time.time()
 
-        self.decode(out, one_batch, subword_mask)
+        self.decode(out, insts)
         time5 = time.time()
 
-        self._eval_metrics.sent_num += len(one_batch)
+        self._eval_metrics.sent_num += len(insts)
         self._eval_metrics.forward_time += time2 - time1
         self._eval_metrics.loss_time += time3 - time2
         self._eval_metrics.backward_time += time4 - time3
@@ -220,14 +220,15 @@ class CWS(object):
         this will not change inst of the invoker
     '''
 
-    def decode(self, emit, insts, mask):
+    def decode(self, emit, insts):
         if self.training:
-            lengths = [len(i) for i in insts]
-            predicts = torch.split(emit[mask].argmax(-1), lengths)
+            # only contains subwords with a single character
+            emit = emit.argmax(-1)[:, :, 0]
+            predicts = [emit[i][:len(inst)] for i, inst in enumerate(insts)]
         else:
             emit = emit.permute(1, 2, 0, 3)
-            seq_len, batch_size, n_labels = emit.shape[1:]
-            lens = mask.sum(dim=(1, 2)).tolist()
+            seq_len, word_length, batch_size, n_labels = emit.shape
+            lens = [len(i) for i in insts]
 
             # [seq_len, batch_size, n_labels]
             delta = emit.new_zeros(seq_len, batch_size, n_labels)
@@ -238,10 +239,10 @@ class CWS(object):
             # containing subword starting at i
             # only the upper triangular part are valid shortcuts
             # [seq_len, seq_len, batch_size, n_labels]
-            shortcuts = torch.zeros_like(emit)
+            shortcuts = emit.new_zeros(seq_len, seq_len, batch_size, n_labels)
 
             # [seq_len, batch_size, n_labels]
-            shortcuts[0] = self._strans + emit[0]
+            shortcuts[0, :word_length] = self._strans + emit[0, :seq_len]
 
             for i in range(1, seq_len):
                 # for all sequences consisting of a subsequence and a
@@ -250,7 +251,7 @@ class CWS(object):
                 delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
                 scores = self._trans + delta[i - 1].unsqueeze(-1)
                 scores, labels[i] = scores.max(dim=1)
-                shortcuts[i] = scores + emit[i]
+                shortcuts[i, i:i+word_length] = scores + emit[i, :seq_len-i]
             delta[-1], splits[-1] = shortcuts[:, -1].max(dim=0)
 
             predicts = []
@@ -283,9 +284,13 @@ class CWS(object):
             for i in range(len(inst)):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
+                self._subword_dict.add_key_into_counter(inst.chars_s[i])
+                for subword in inst.subwords_s[i][1:]:
+                    if subword in self._pretrained:
+                        self._subword_dict.add_key_into_counter(subword)
                 self._label_dict.add_key_into_counter(inst.labels_s[i])
 
-    def numeralize_all_instances(self, dataset, label_dict):
+    def numericalize_all_instances(self, dataset):
         # the bos and eos tokens are added to the sequences of each inst here,
         # acting as representations of the beginning and end of the sentence
         for inst in dataset.all_inst:
@@ -293,8 +298,27 @@ class CWS(object):
                                          for i in [bos] + inst.chars_s + [eos]])
             inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
                                            for i in [bos] + inst.bichars_s + [eos]])
-            inst.labels_i = torch.tensor([self._label_dict.get_id(i)
-                                          for i in inst.labels_s])
+            # each position has a list of subword indices
+            # if the subword [i, j) does not exist in vocabularies,
+            # then numericalize it with unk_index
+            inst.subwords_i = torch.empty(
+                len(inst), self._conf.max_word_length, dtype=torch.long
+            ).fill_(self._subword_dict.pad_index)
+            inst.sublabels_i = torch.empty(
+                len(inst), self._conf.max_word_length, dtype=torch.long
+            ).fill_(self._label_dict.unk_index)
+            for i in range(len(inst)):
+                word_indices = torch.tensor([
+                    self._subword_dict.get_id(j)
+                    for j in inst.subwords_s[i]
+                ])
+                label_indices = torch.tensor([
+                    Instance.extract([self._label_dict.get_id(j[0]),
+                                      self._label_dict.get_id(j[-1])])
+                    for j in inst.sublabels_s[i]
+                ])
+                inst.subwords_i[i, :len(word_indices)] = word_indices
+                inst.sublabels_i[i, :len(label_indices)] = label_indices
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
@@ -303,6 +327,8 @@ class CWS(object):
                              default_keys=[pad, unk, bos, eos])
         self._bichar_dict.load(path + self._bichar_dict.name,
                                default_keys=[pad, unk, bos, eos])
+        self._subword_dict.load(path + self._subword_dict.name,
+                                default_keys=[pad, unk])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
 
@@ -312,6 +338,7 @@ class CWS(object):
             os.mkdir(path)
         self._char_dict.save(path + self._char_dict.name)
         self._bichar_dict.save(path + self._bichar_dict.name)
+        self._subword_dict.save(path + self._subword_dict.name)
         self._label_dict.save(path + self._label_dict.name)
         print("save dict done")
 
@@ -325,17 +352,27 @@ class CWS(object):
         else:
             print('Delete model %s error, not exist.' % path)
 
-    def open_and_load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
+    def load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
         assert len(datasets) == 0
         names = filenames.strip().split(':')
         assert len(names) > 0
         for name in names:
-            datasets.append(Dataset(filename=name,
-                                    max_bucket_num=self._conf.max_bucket_num,
-                                    char_num_one_batch=self._conf.char_num_one_batch,
-                                    sent_num_one_batch=self._conf.sent_num_one_batch,
-                                    inst_num_max=inst_num_max,
-                                    shuffle=shuffle))
+            dataset = Dataset(filename=name,
+                              max_bucket_num=self._conf.max_bucket_num,
+                              char_batch_size=self._conf.char_batch_size,
+                              sent_batch_size=self._conf.sent_batch_size,
+                              inst_num_max=inst_num_max,
+                              shuffle=shuffle)
+            for inst in dataset.all_inst:
+                inst.subwords_s = [
+                    [''.join(inst.chars_s[i:i+j+1])
+                     for j in range(min(self._conf.max_word_length, len(inst) - i))]
+                    for i in range(len(inst))]
+                inst.sublabels_s = [
+                    [inst.labels_s[i:i+j+1]
+                     for j in range(min(self._conf.max_word_length, len(inst) - i))]
+                    for i in range(len(inst))]
+            datasets.append(dataset)
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
@@ -354,15 +391,20 @@ class CWS(object):
 
     def set_training_mode(self, training=True):
         self.training = training
-        self._cws_model.train(training)
+        self._model.train(training)
 
-    def compose_batch_data(self, one_batch):
-        chars = pad_sequence([inst.chars_i for inst in one_batch], True)
-        bichars = pad_sequence([inst.bichars_i for inst in one_batch], True)
-        labels = pad_sequence([inst.labels_i for inst in one_batch], True)
+    def compose_batch(self, insts):
+        chars = pad_sequence([inst.chars_i for inst in insts], True)
+        bichars = pad_sequence([inst.bichars_i for inst in insts], True)
+        subwords = pad_sequence([inst.subwords_i for inst in insts], True)
+        sublabels = pad_sequence([inst.sublabels_i for inst in insts], True)
+
+        subwords = subwords[:, :, :subwords.size(1)]
+        sublabels = sublabels[:, :, :sublabels.size(1)]
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()
             bichars = bichars.cuda()
-            labels = labels.cuda()
-        return chars, bichars, labels
+            subwords = subwords.cuda()
+            sublabels = sublabels.cuda()
+        return chars, bichars, subwords, sublabels
