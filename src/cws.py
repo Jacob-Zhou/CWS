@@ -168,9 +168,9 @@ class CWS(object):
         # shape of the following tensors:
         # chars: [batch_size, seq_len + 2]
         # bichars: [batch_size, seq_len + 2]
-        # subwords: [batch_size, seq_len, max_word_length]
-        # sublabels: [batch_size, seq_len, max_word_length]
-        # the bos and eos tokens are added to inputs of the model
+        # subwords: [batch_size, seq_len, word_length]
+        # sublabels: [batch_size, seq_len, word_length]
+        # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
         # ignore all pad an unk tokens in subwords
         subword_mask = subwords.ne(self._subword_dict.unk_index)
