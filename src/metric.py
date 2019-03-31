@@ -5,7 +5,7 @@ import time
 
 class Metric(object):
 
-    def __init__(self,  eps=1e-6):
+    def __init__(self, eps=1e-6):
         self.clear()
         self.eps = eps
 
