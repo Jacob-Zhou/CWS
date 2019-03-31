@@ -143,6 +143,9 @@ class CWS(object):
             self.evaluate(self._dev_datasets[0])
             self._eval_metrics.compute_and_output(self._dev_datasets[0],
                                                   eval_cnt)
+            # for inst in self._dev_datasets[0].all_inst:
+            #     print(inst.labels_s)
+            #     print(inst.labels_s_pred)
             current_fmeasure = self._eval_metrics.fscore
             self._eval_metrics.clear()
 
@@ -231,11 +234,11 @@ class CWS(object):
             lens = [len(i) for i in insts]
 
             # [seq_len, batch_size, n_labels]
-            delta = emit.new_zeros(seq_len, batch_size, n_labels).log()
+            delta = emit.new_zeros(seq_len, batch_size, n_labels)
             labels = emit.new_zeros(seq_len, batch_size, n_labels).long()
             splits = emit.new_zeros(seq_len, batch_size, n_labels).long()
 
-            # shortcuts[i] corresponds to max log probs of all subwords
+            # shortcuts[i] corresponds to max log probs of all subwords,
             # starting at i, only the upper triangular part are valid shortcuts
             # [seq_len, seq_len, batch_size, n_labels]
             shortcuts = emit.new_zeros(seq_len, seq_len,
@@ -245,9 +248,9 @@ class CWS(object):
             shortcuts[0, :word_length] = self._strans + emit[0, :seq_len]
 
             for i in range(1, seq_len):
-                # for all sequences consisting of a subsequence and a
-                # subword (starting at 0, 1, ..., i-1 and ending at i), choose
-                # the one with max probs and record split point of its subword
+                # for all sequences consisting of a subsequence and a subword,
+                # starting at 0, 1, ..., i-1 and ending at i, choose the one
+                # with max probs and record split point of its subword
                 delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
                 scores = self._trans + delta[i - 1].unsqueeze(-1)
                 scores, labels[i] = scores.max(dim=1)
