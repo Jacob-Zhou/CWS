@@ -23,7 +23,8 @@ class CWS(object):
         self._use_cuda, self._cuda_device = ('cuda' == self._device.type,
                                              self._device.index)
         if self._use_cuda:
-            # please note that the index is the relative index in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
+            # please note that the index is the relative index
+            # in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
             assert 0 <= self._cuda_device < 8
             os.environ["CUDA_VISIBLE_DEVICES"] = str(self._cuda_device)
             # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../main.py ...
@@ -297,15 +298,17 @@ class CWS(object):
                                          for i in [bos] + inst.chars_s + [eos]])
             inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
                                            for i in [bos] + inst.bichars_s + [eos]])
+            inst.labels_i = torch.tensor([self._label_dict.get_id(i)
+                                          for i in inst.labels_s])
             # each position has a list of subword indices
             # if the subword [i, j) does not exist in vocabularies,
             # then numericalize it with unk_index
-            inst.subwords_i = torch.empty(
+            inst.subwords_i = torch.zeros(
                 len(inst), self._conf.max_word_length, dtype=torch.long
-            ).fill_(self._subword_dict.pad_index)
-            inst.sublabels_i = torch.empty(
+            )
+            inst.sublabels_i = torch.zeros(
                 len(inst), self._conf.max_word_length, dtype=torch.long
-            ).fill_(self._label_dict.unk_index)
+            )
             for i in range(len(inst)):
                 word_indices = torch.tensor([
                     self._subword_dict.get_id(j)
