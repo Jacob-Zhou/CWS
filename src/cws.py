@@ -231,15 +231,15 @@ class CWS(object):
             lens = [len(i) for i in insts]
 
             # [seq_len, batch_size, n_labels]
-            delta = emit.new_zeros(seq_len, batch_size, n_labels)
+            delta = emit.new_zeros(seq_len, batch_size, n_labels).log()
             labels = emit.new_zeros(seq_len, batch_size, n_labels).long()
             splits = emit.new_zeros(seq_len, batch_size, n_labels).long()
 
-            # shortcuts[i] corresponds to max probs of all the sequences
-            # containing subword starting at i
-            # only the upper triangular part are valid shortcuts
+            # shortcuts[i] corresponds to max log probs of all subwords
+            # starting at i, only the upper triangular part are valid shortcuts
             # [seq_len, seq_len, batch_size, n_labels]
-            shortcuts = emit.new_zeros(seq_len, seq_len, batch_size, n_labels)
+            shortcuts = emit.new_zeros(seq_len, seq_len,
+                                       batch_size, n_labels).log()
 
             # [seq_len, batch_size, n_labels]
             shortcuts[0, :word_length] = self._strans + emit[0, :seq_len]
