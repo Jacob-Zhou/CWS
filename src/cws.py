@@ -96,6 +96,9 @@ class CWS(object):
                            self._test_datasets,
                            inst_num_max=self._conf.inst_num_max)
 
+        # extend the dict with words in pretrained
+        # keep the position of existing words unchanged
+        self._subword_dict.extend(self._pretrained.words)
         print('numericalizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + \
                 self._test_datasets:
@@ -106,6 +109,10 @@ class CWS(object):
         else:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
+        # self._model.load_pretrained(
+        #     self._pretrained.get_embeddings(self._subword_dict.tokens)
+        # )
+        print(self._model)
 
         if self._use_cuda:
             # self._model.cuda()
@@ -113,7 +120,6 @@ class CWS(object):
             self._strans = self._strans.to(self._cuda_device)
             self._etrans = self._etrans.to(self._cuda_device)
             self._trans = self._trans.to(self._cuda_device)
-        print(self._model)
 
         if self._conf.is_train:
             assert self._optimizer is None
@@ -338,6 +344,7 @@ class CWS(object):
         self._bichar_dict.load(path + self._bichar_dict.name,
                                default_keys=[pad, unk, bos, eos])
         self._subword_dict.load(path + self._subword_dict.name,
+                                # cutoff_freq=self._conf.cutoff_freq,
                                 default_keys=[pad, unk])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
