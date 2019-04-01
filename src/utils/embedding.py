@@ -5,16 +5,16 @@ import torch
 
 class Embedding(object):
 
-    def __init__(self, subwords, vectors, unk=None):
+    def __init__(self, words, vectors, unk=None):
         super(Embedding, self).__init__()
 
-        self.subwords = subwords
+        self.words = words
         self.vectors = vectors
-        self.pretrained = {w: v for w, v in zip(subwords, vectors)}
+        self.pretrained = {w: v for w, v in zip(words, vectors)}
         self.unk = unk
 
     def __len__(self):
-        return len(self.subwords)
+        return len(self.words)
 
     def __contains__(self, word):
         return word in self.pretrained
@@ -26,15 +26,24 @@ class Embedding(object):
     def dim(self):
         return len(self.vectors[0])
 
+    def get_embeddings(self, words, smooth=True):
+        embeddings = torch.zeros(len(words), self.dim)
+        for i, word in enumerate(words):
+            if word in self:
+                embeddings[i] = self[word]
+        if smooth:
+            embeddings /= torch.std(embeddings)
+        return embeddings
+
     @classmethod
     def load(cls, fname, unk=None):
         with open(fname, 'r') as f:
             lines = [line for line in f]
-        subwords = [line.split()[0] for line in lines]
-        vectors = torch.zeros(len(subwords), 50).normal_().tolist()
+        words = [line.split()[0] for line in lines]
+        vectors = torch.zeros(len(words), 50).normal_().tolist()
         # splits = [line.split() for line in lines]
         # reprs = [(s[0], list(map(float, s[1:]))) for s in splits]
-        # subwords, vectors = map(list, zip(*reprs))
-        embedding = cls(subwords, vectors, unk=unk)
+        # words, vectors = map(list, zip(*reprs))
+        embedding = cls(words, vectors, unk=unk)
 
         return embedding
