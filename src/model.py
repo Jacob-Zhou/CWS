@@ -56,8 +56,7 @@ class CWSModel(nn.Module):
 
         self.ffn = nn.Linear(self._conf.lstm_hidden_dim + self._conf.subword_emb_dim,
                              label_dict_size)
-        self.log_softmax = nn.LogSoftmax(dim=-1)
-        self.criterion = nn.NLLLoss()
+        self.criterion = nn.CrossEntropyLoss()
         print('init models done')
 
     def reset_parameters(self):
@@ -70,9 +69,6 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
-        subword_mask = subwords.ne(pad_index) & subwords.ne(unk_index)
-        # the subwords of length 1 are always visible
-        subword_mask[:, :, 0] = 1
         batch_size, seq_len, word_length = subwords.shape
         lens = mask.sum(1)
 
@@ -111,8 +107,6 @@ class CWSModel(nn.Module):
 
         x = torch.cat([x_span, emb_subword], dim=-1)
         x = self.ffn(x)
-        x = self.log_softmax(x)
-        x = x.masked_fill(~subword_mask.unsqueeze(-1), float('-inf'))
 
         return x
 
