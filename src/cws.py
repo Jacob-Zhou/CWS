@@ -6,6 +6,7 @@ import time
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from src.common import bos, eos, pad, unk
 from src.metric import Metric
 from src.model import CWSModel
@@ -183,16 +184,12 @@ class CWS(object):
         # sublabels: [batch_size, seq_len, word_length]
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
-        # ignore all pad and unk tokens in subwords
-        subword_mask = subwords.ne(self._subword_dict.unk_index)
-        subword_mask &= subwords.ne(self._subword_dict.pad_index)
-        # to avoid all subwords being unknown,
-        # here the subwords of length 1 are made visible
-        subword_mask[:, :, 0] = 1
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
 
+        # ignore all pad and unk tokens in subwords
+        subword_mask = subwords.ne(self._subword_dict.pad_index)
         label_loss = self._model.get_loss(out, sublabels, subword_mask)
         self._metric.loss_accumulated += label_loss.item()
         time3 = time.time()
@@ -204,7 +201,7 @@ class CWS(object):
             self._optimizer.step()
         time4 = time.time()
 
-        self.decode(out, insts)
+        self.decode(out, insts, subword_mask)
         time5 = time.time()
 
         self._metric.sent_num += len(insts)
@@ -235,12 +232,15 @@ class CWS(object):
         this will not change inst of the invoker
     '''
 
-    def decode(self, emit, insts):
+    def decode(self, emit, insts, mask):
         if self.training:
             # only contains subwords with a single character
             emit = emit.argmax(-1)[:, :, 0]
             predicts = [emit[i][:len(inst)] for i, inst in enumerate(insts)]
         else:
+            # fill the padded part with -inf
+            emit = emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
+            # emit = F.log_softmax(emit.sum(-1, True), dim=-1) + F.log_softmax(emit, dim=-1)
             emit = emit.permute(1, 2, 0, 3)
             seq_len, word_length, batch_size, n_labels = emit.shape
             lens = [len(i) for i in insts]
@@ -344,7 +344,7 @@ class CWS(object):
         self._bichar_dict.load(path + self._bichar_dict.name,
                                default_keys=[pad, unk, bos, eos])
         self._subword_dict.load(path + self._subword_dict.name,
-                                # cutoff_freq=self._conf.cutoff_freq,
+                                cutoff_freq=self._conf.cutoff_freq,
                                 default_keys=[pad, unk])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
