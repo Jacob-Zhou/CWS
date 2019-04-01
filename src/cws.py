@@ -177,9 +177,12 @@ class CWS(object):
         # sublabels: [batch_size, seq_len, word_length]
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
-        # ignore all pad an unk tokens in subwords
+        # ignore all pad and unk tokens in subwords
         subword_mask = subwords.ne(self._subword_dict.unk_index)
         subword_mask &= subwords.ne(self._subword_dict.pad_index)
+        # to avoid all subwords being unknown,
+        # here the subwords of length 1 are made visible
+        subword_mask[:, :, 0] = 1
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()

@@ -65,6 +65,8 @@ class CWSModel(nn.Module):
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
         subword_mask = subwords.ne(pad_index) & subwords.ne(unk_index)
+        # the subwords of length 1 are visible
+        subword_mask[:, :, 0] = 1
         batch_size, seq_len, word_length = subwords.shape
         lens = mask.sum(1)
 
