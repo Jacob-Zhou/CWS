@@ -49,6 +49,16 @@ class VocabDict(object):
         else:
             return self._eos_index
 
+    @property
+    def tokens(self):
+        return self._id2str
+
+    def extend(self, tokens):
+        unk_tokens = sorted(token for token in tokens
+                            if token not in self._str2id)
+        self._id2str += unk_tokens
+        self._str2id = {token: i for i, token in enumerate(self._id2str)}
+
     #  ------ _counter ------
     def add_key_into_counter(self, k):
         self._counter[k] += 1
