@@ -7,8 +7,8 @@ import time
 import torch
 import torch.nn as nn
 from src.common import bos, eos, pad, unk
-from src.model import CWSModel
 from src.metric import Metric
+from src.model import CWSModel
 from src.optimizer import Optimizer
 from src.utils import Dataset, Embedding, Instance, VocabDict
 from torch.nn.utils.rnn import pad_sequence
