@@ -149,6 +149,10 @@ class Configurable(object):
         return self._conf.getint('Train', 'max_word_length')
 
     @property
+    def cutoff_freq(self):
+        return self._conf.getint('Train', 'cutoff_freq')
+
+    @property
     def patience(self):
         return self._conf.getint('Train', 'patience')
 
