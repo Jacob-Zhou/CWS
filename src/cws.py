@@ -55,7 +55,7 @@ class CWS(object):
             [1., 0., 0., 1.]   # S
         ]).log()  # (FROM->TO)
 
-        self._eval_metrics = Metric()
+        self._metric = Metric()
         self._model = CWSModel('ws', conf, self._use_cuda)
 
     def run(self):
@@ -97,7 +97,8 @@ class CWS(object):
                            inst_num_max=self._conf.inst_num_max)
 
         print('numericalizing all instances in all datasets')
-        for dataset in self._train_datasets + self._dev_datasets + self._test_datasets:
+        for dataset in self._train_datasets + self._dev_datasets + \
+                self._test_datasets:
             self.numericalize_all_instances(dataset)
 
         if self._conf.is_train:
@@ -125,29 +126,29 @@ class CWS(object):
         for dataset in self._test_datasets:
             self.evaluate(dataset=dataset,
                           output_filename=dataset.filename_short + '.out')
-            self._eval_metrics.compute_and_output(self._test_datasets[0],
-                                                  self._conf.model_eval_num)
-            self._eval_metrics.clear()
+            self._metric.compute_and_output(self._test_datasets[0],
+                                            self._conf.model_eval_num)
+            self._metric.clear()
 
     def train(self):
         best_eval_cnt, best_accuracy = 0, 0.
-        self._eval_metrics.clear()
+        self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
             for batch in self._train_datasets[0]:
                 self.train_or_eval_one_batch(batch)
-            self._eval_metrics.compute_and_output(self._train_datasets[0],
-                                                  eval_cnt)
-            self._eval_metrics.clear()
+            self._metric.compute_and_output(self._train_datasets[0],
+                                            eval_cnt)
+            self._metric.clear()
 
             self.evaluate(self._dev_datasets[0])
-            self._eval_metrics.compute_and_output(self._dev_datasets[0],
-                                                  eval_cnt)
+            self._metric.compute_and_output(self._dev_datasets[0],
+                                            eval_cnt)
             # for inst in self._dev_datasets[0].all_inst:
             #     print(inst.labels_s)
             #     print(inst.labels_s_pred)
-            current_fmeasure = self._eval_metrics.fscore
-            self._eval_metrics.clear()
+            current_fmeasure = self._metric.fscore
+            self._metric.clear()
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.save_model_after_eval_num:
@@ -157,9 +158,9 @@ class CWS(object):
                                            eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
                                   output_filename=None)
-                    self._eval_metrics.compute_and_output(self._test_datasets[0],
-                                                          eval_cnt)
-                    self._eval_metrics.clear()
+                    self._metric.compute_and_output(self._test_datasets[0],
+                                                    eval_cnt)
+                    self._metric.clear()
 
                 best_eval_cnt = eval_cnt
                 best_accuracy = current_fmeasure
@@ -184,7 +185,7 @@ class CWS(object):
         time2 = time.time()
 
         label_loss = self._model.get_loss(out, sublabels, subword_mask)
-        self._eval_metrics.loss_accumulated += label_loss.item()
+        self._metric.loss_accumulated += label_loss.item()
         time3 = time.time()
 
         if self.training:
@@ -197,11 +198,11 @@ class CWS(object):
         self.decode(out, insts)
         time5 = time.time()
 
-        self._eval_metrics.sent_num += len(insts)
-        self._eval_metrics.forward_time += time2 - time1
-        self._eval_metrics.loss_time += time3 - time2
-        self._eval_metrics.backward_time += time4 - time3
-        self._eval_metrics.decode_time += time5 - time4
+        self._metric.sent_num += len(insts)
+        self._metric.forward_time += time2 - time1
+        self._metric.loss_time += time3 - time2
+        self._metric.backward_time += time4 - time3
+        self._metric.decode_time += time5 - time4
 
     @torch.no_grad()
     def evaluate(self, dataset, output_filename=None):
@@ -216,10 +217,12 @@ class CWS(object):
                     inst.write(out_file)
 
     ''' 2018.11.3 by Zhenghua
-    I found that using multi-thread for non-viterbi (local) decoding is actually
-    much slower than single-thread (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
+    I found that using multi-thread for non-viterbi (local) decoding is
+    actually much slower than single-thread
+    (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
     NOTICE:
-        multi-process: CAN NOT CWS.set_predict_result(inst, head_pred, label_pred, label_dict),
+        multi-process: CAN NOT CWS.set_predict_result(inst, head_pred,
+                                                      label_pred, label_dict),
         this will not change inst of the invoker
     '''
 
@@ -245,7 +248,7 @@ class CWS(object):
                                        batch_size, n_labels).log()
 
             # [seq_len, batch_size, n_labels]
-            shortcuts[0, :word_length] = self._strans + emit[0, :seq_len]
+            shortcuts[0, :word_length] = self._strans + emit[0]
 
             for i in range(1, seq_len):
                 # for all sequences consisting of a subsequence and a subword,
@@ -279,8 +282,7 @@ class CWS(object):
 
         for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred, self._label_dict)
-            CWS.compute_accuracy_one_inst(inst, self._eval_metrics,
-                                          self.training)
+            CWS.compute_accuracy_one_inst(inst, self._metric, self.training)
 
     def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
