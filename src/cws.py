@@ -184,12 +184,16 @@ class CWS(object):
         # sublabels: [batch_size, seq_len, word_length]
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
+        # ignore all pad and unk tokens in subwords
+        subword_mask = subwords.ne(self._subword_dict.pad_index)
+        subword_mask &= subwords.ne(self._subword_dict.unk_index)
+        # to avoid all subwords being unknown,
+        # here the subwords of length 1 are made always visible
+        subword_mask[:, :, 0] = 1
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
 
-        # ignore all pad and unk tokens in subwords
-        subword_mask = subwords.ne(self._subword_dict.pad_index)
         label_loss = self._model.get_loss(out, sublabels, subword_mask)
         self._metric.loss_accumulated += label_loss.item()
         time3 = time.time()
