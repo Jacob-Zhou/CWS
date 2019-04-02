@@ -46,14 +46,15 @@ class CWS(object):
 
         # transition scores of the labels
         # make sure the label dict have been sorted
-        # [B, E, M, S]
-        self._strans = torch.tensor([1., 0., 0., 1.]).log()
-        self._etrans = torch.tensor([0., 1., 0., 1.]).log()
+        # [B, E, M, S, X]
+        self._strans = torch.tensor([1., 0., 0., 1., 0.]).log()
+        self._etrans = torch.tensor([0., 1., 0., 1., 0.]).log()
         self._trans = torch.tensor([
-            [0., 1., 1., 0.],  # B
-            [1., 0., 0., 1.],  # E
-            [0., 1., 1., 0.],  # M
-            [1., 0., 0., 1.]   # S
+            [0., 1., 1., 0., 0.],  # B
+            [1., 0., 0., 1., 0.],  # E
+            [0., 1., 1., 0., 0.],  # M
+            [1., 0., 0., 1., 0.],   # S
+            [0., 0., 0., 0., 0.]   # X
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
@@ -302,11 +303,11 @@ class CWS(object):
             for i in range(len(inst)):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
-                self._subword_dict.add_key_into_counter(inst.chars_s[i])
-                for subword in inst.subwords_s[i][1:]:
+                for subword in inst.subwords_s[i]:
                     if subword in self._pretrained:
                         self._subword_dict.add_key_into_counter(subword)
-                self._label_dict.add_key_into_counter(inst.labels_s[i])
+                for sublabel in inst.sublabels_s[i]:
+                    self._label_dict.add_key_into_counter(sublabel)
 
     def numericalize_all_instances(self, dataset):
         # the bos and eos tokens are added to the sequences of each inst here,
@@ -329,13 +330,10 @@ class CWS(object):
             )
             for i in range(len(inst)):
                 word_indices = torch.tensor([
-                    self._subword_dict.get_id(j)
-                    for j in inst.subwords_s[i]
+                    self._subword_dict.get_id(j) for j in inst.subwords_s[i]
                 ])
                 label_indices = torch.tensor([
-                    Instance.extract([self._label_dict.get_id(j[0]),
-                                      self._label_dict.get_id(j[-1])])
-                    for j in inst.sublabels_s[i]
+                    self._label_dict.get_id(j) for j in inst.sublabels_s[i]
                 ])
                 inst.subwords_i[i, :len(word_indices)] = word_indices
                 inst.sublabels_i[i, :len(label_indices)] = label_indices
@@ -380,19 +378,11 @@ class CWS(object):
         for name in names:
             dataset = Dataset(filename=name,
                               max_bucket_num=self._conf.max_bucket_num,
+                              max_word_length=self._conf.max_word_length,
                               char_batch_size=self._conf.char_batch_size,
                               sent_batch_size=self._conf.sent_batch_size,
                               inst_num_max=inst_num_max,
                               shuffle=shuffle)
-            for inst in dataset.all_inst:
-                inst.subwords_s = [
-                    [''.join(inst.chars_s[i:i+j+1])
-                     for j in range(min(self._conf.max_word_length, len(inst) - i))]
-                    for i in range(len(inst))]
-                inst.sublabels_s = [
-                    [inst.labels_s[i:i+j+1]
-                     for j in range(min(self._conf.max_word_length, len(inst) - i))]
-                    for i in range(len(inst))]
             datasets.append(dataset)
 
     @staticmethod
