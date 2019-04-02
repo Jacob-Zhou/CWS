@@ -23,7 +23,7 @@ emb_subword_file = %(data_dir)s/Giga-coarse-fine.dict.txt
 is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 50
-max_word_length = 20
+max_word_length = 10
 cutoff_freq = 1
 patience = 10
 
