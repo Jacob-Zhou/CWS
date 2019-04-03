@@ -53,7 +53,7 @@ class CWS(object):
             [0., 1., 1., 0., 0.],  # B
             [1., 0., 0., 1., 0.],  # E
             [0., 1., 1., 0., 0.],  # M
-            [1., 0., 0., 1., 0.],   # S
+            [1., 0., 0., 1., 0.],  # S
             [0., 0., 0., 0., 0.]   # X
         ]).log()  # (FROM->TO)
 
@@ -187,10 +187,6 @@ class CWS(object):
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
         # ignore all pad and unk tokens in subwords
         subword_mask = subwords.ne(self._subword_dict.pad_index)
-        subword_mask &= subwords.ne(self._subword_dict.unk_index)
-        # to avoid all subwords being unknown,
-        # here the subwords of length 1 are made always visible
-        subword_mask[:, :, 0] = 1
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
@@ -245,7 +241,7 @@ class CWS(object):
         else:
             # fill the padded part with -inf
             emit = emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
-            # emit = F.log_softmax(emit.sum(-1, True), dim=-1) + F.log_softmax(emit, dim=-1)
+            # emit = F.log_softmax(emit, dim=-1)
             emit = emit.permute(1, 2, 0, 3)
             seq_len, word_length, batch_size, n_labels = emit.shape
             lens = [len(i) for i in insts]

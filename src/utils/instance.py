@@ -50,11 +50,12 @@ class Instance(object):
             assert(len(tokens) == 3)
             self.chars_s[i], self.bichars_s[i], self.labels_s[i] = tokens
         for i in range(len(self)):
+            length = min(max_word_length, len(self) - i)
             self.subwords_s[i] = [
                 ''.join(self.chars_s[i:i+j+1])
-                for j in range(min(max_word_length, len(self) - i))
+                for j in range(length)
             ]
-            self.sublabels_s[i] = ['x'] * min(max_word_length, len(self) - i)
+            self.sublabels_s[i] = ['x-seg'] * length
         for start, end in self.get_spans(self.labels_s):
             for i in range(start, end):
                 for j in range(i, min(i + max_word_length, end)):
