@@ -6,12 +6,13 @@ import time
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.optimizer import Optimizer
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
+from torch.optim.lr_scheduler import LambdaLR
 
 
 class CWS(object):
@@ -32,6 +33,7 @@ class CWS(object):
         self.training = False
 
         self._optimizer = None
+        self._scheduler = None
         self._use_bucket = (self._conf.max_bucket_num > 1)
         self._train_datasets = []
         self._dev_datasets = []
@@ -110,9 +112,11 @@ class CWS(object):
             self._trans = self._trans.to(self._cuda_device)
 
         if self._conf.is_train:
-            assert self._optimizer is None
-            self._optimizer = Optimizer(self._model.parameters(),
-                                        self._conf)
+            assert self._optimizer is None and self._scheduler is None
+            self._optimizer = optim.SGD(params=self._model.parameters(),
+                                        lr=self._conf.lr)
+            self._scheduler = LambdaLR(optimizer=self._optimizer,
+                                       lr_lambda=lambda x: self._conf.lr * (1 - self._conf.decay)**x)
             self.train()
             return
 
@@ -130,7 +134,9 @@ class CWS(object):
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
             for batch in self._train_datasets[0]:
+                self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch)
+            self._scheduler.step()
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
             self._metric.clear()
