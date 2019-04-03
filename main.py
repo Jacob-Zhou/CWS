@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import os
-import sys
-import time
+import random
 
 import torch
 from src import CWS, Configurable
@@ -23,8 +21,9 @@ if __name__ == '__main__':
     # cudaNo = conf.cudaNo
     # os.environ["CUDA_VISIBLE_DEVICES"] = cudaNo
 
+    random.seed(args.seed)
     torch.manual_seed(args.seed)
-    print('random_seeds = ', args.seed)
+    print('random_seeds = %d' % args.seed)
 
     # run with CPU, then use multi-thread? What does this mean?
     torch.set_num_threads(conf.cpu_thread_num)
