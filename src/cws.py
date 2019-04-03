@@ -174,6 +174,9 @@ class CWS(object):
 
             if best_eval_cnt + self._conf.patience <= eval_cnt:
                 break
+        print("The training ended at epoch %d" % eval_cnt)
+        print("The best fscore of dev is %.3f at epoch %d" %
+              (best_accuracy, eval_cnt))
 
     def train_or_eval_one_batch(self, insts):
         print('.', end='')
