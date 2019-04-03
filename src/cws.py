@@ -6,9 +6,9 @@ import time
 
 import torch
 import torch.nn as nn
-from src.common import padding_idx, padding_str, unknown_idx, unknown_str
-from src.cws_model import CWSModel
+from src.common import pad, unk
 from src.metric import Metric
+from src.model import CWSModel
 from src.optimizer import Optimizer
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
@@ -52,7 +52,7 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._eval_metrics = Metric()
-        self._cws_model = CWSModel('ws', conf, self._use_cuda)
+        self._model = CWSModel('ws', conf, self._use_cuda)
 
     def run(self):
         if self._conf.is_train:
@@ -67,16 +67,16 @@ class CWS(object):
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
 
-                self._cws_model.init_models(len(self._char_dict),
-                                            len(self._bichar_dict),
-                                            len(self._label_dict))
-                self._cws_model.reset_parameters()
-                self._cws_model.save_model(self._conf.model_dir, 0)
+                self._model.init_models(len(self._char_dict),
+                                        len(self._bichar_dict),
+                                        len(self._label_dict))
+                self._model.reset_parameters()
+                self._model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
-        self._cws_model.init_models(len(self._char_dict),
-                                    len(self._bichar_dict),
-                                    len(self._label_dict))
+        self._model.init_models(len(self._char_dict),
+                                len(self._bichar_dict),
+                                len(self._label_dict))
 
         if self._conf.is_train:
             self.open_and_load_datasets(self._conf.dev_files,
@@ -92,22 +92,22 @@ class CWS(object):
             self.numeralize_all_instances(dataset, self._label_dict)
 
         if self._conf.is_train:
-            self._cws_model.load_model(self._conf.model_dir, 0)
+            self._model.load_model(self._conf.model_dir, 0)
         else:
-            self._cws_model.load_model(self._conf.model_dir,
-                                       self._conf.model_eval_num)
+            self._model.load_model(self._conf.model_dir,
+                                   self._conf.model_eval_num)
 
         if self._use_cuda:
-            # self._cws_model.cuda()
-            self._cws_model.to(self._cuda_device)
+            # self._model.cuda()
+            self._model.to(self._cuda_device)
             self._strans = self._strans.to(self._cuda_device)
             self._etrans = self._etrans.to(self._cuda_device)
             self._trans = self._trans.to(self._cuda_device)
-        print(self._cws_model)
+        print(self._model)
 
         if self._conf.is_train:
             assert self._optimizer is None
-            self._optimizer = Optimizer(self._cws_model.parameters(),
+            self._optimizer = Optimizer(self._model.parameters(),
                                         self._conf)
             self.train()
             return
@@ -141,8 +141,8 @@ class CWS(object):
                 if eval_cnt > self._conf.save_model_after_eval_num:
                     if best_eval_cnt > self._conf.save_model_after_eval_num:
                         self.del_model(self._conf.model_dir, best_eval_cnt)
-                    self._cws_model.save_model(self._conf.model_dir,
-                                               eval_cnt)
+                    self._model.save_model(self._conf.model_dir,
+                                           eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
                                   output_filename=None)
                     self._eval_metrics.compute_and_output(self._test_datasets[0],
@@ -158,18 +158,18 @@ class CWS(object):
     def train_or_eval_one_batch(self, one_batch):
         print('.', end='')
         chars, bichars, labels = self.compose_batch_data(one_batch)
-        mask = chars.ne(padding_idx)
+        mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        mlp_out = self._cws_model(chars, bichars)
+        mlp_out = self._model(chars, bichars)
         time2 = time.time()
 
-        label_loss = self._cws_model.get_loss(mlp_out, labels, mask)
+        label_loss = self._model.get_loss(mlp_out, labels, mask)
         self._eval_metrics.loss_accumulated += label_loss.item()
         time3 = time.time()
 
         if self.training:
             label_loss.backward()
-            nn.utils.clip_grad_norm_(self._cws_model.parameters(),
+            nn.utils.clip_grad_norm_(self._model.parameters(),
                                      max_norm=self._conf.clip)
             self._optimizer.step()
         time4 = time.time()
@@ -260,9 +260,9 @@ class CWS(object):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
-                             default_keys=[padding_str, unknown_str])
+                             default_keys=[pad, unk])
         self._bichar_dict.load(path + self._bichar_dict.name,
-                               default_keys=[padding_str, unknown_str])
+                               default_keys=[pad, unk])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
 
@@ -299,7 +299,7 @@ class CWS(object):
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
-        inst.labels_i_predict = pred
+        inst.labels_i_pred = pred
         inst.labels_s_predict = [label_dict.get_str(i) for i in pred.tolist()]
 
     @staticmethod
@@ -314,7 +314,7 @@ class CWS(object):
 
     def set_training_mode(self, training=True):
         self.training = training
-        self._cws_model.train(training)
+        self._model.train(training)
 
     def compose_batch_data(self, one_batch):
         chars = pad_sequence([inst.chars_i for inst in one_batch], True)
