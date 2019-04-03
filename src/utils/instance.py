@@ -15,7 +15,7 @@ class Instance(object):
         self.chars_i = torch.zeros(n).long()
         self.bichars_i = torch.zeros(n).long()
         self.labels_i = torch.zeros(n).long()
-        self.labels_i_predict = torch.zeros(n).long()
+        self.labels_i_pred = torch.zeros(n).long()
 
         self.decompose_sent(lines)
 

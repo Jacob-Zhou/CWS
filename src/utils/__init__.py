@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from .bucketing import Bucketing
 from .dataset import Dataset
 from .instance import Instance
-from .simple_bucketing import Bucketing
 from .vocab import VocabDict
 
 
-__all__ = ['Dataset', 'Instance', 'Bucketing', 'VocabDict']
+__all__ = ['Bucketing', 'Dataset', 'Instance', 'VocabDict']

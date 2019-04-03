@@ -4,11 +4,8 @@ import math
 import random
 from collections import Counter
 
-import torch
-
+from .bucketing import Bucketing
 from .instance import Instance
-from .simple_bucketing import Bucketing
-from .vocab import VocabDict
 
 
 class Dataset(object):

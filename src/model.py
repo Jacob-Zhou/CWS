@@ -44,8 +44,7 @@ class CWSModel(nn.Module):
                                   hidden_size=self._conf.lstm_hidden_dim//2,
                                   batch_first=True,
                                   bidirectional=True,
-                                  num_layers=self._conf.lstm_layer_num,
-                                  dropout=self._conf.lstm_dropout)
+                                  num_layers=self._conf.lstm_layer_num)
 
         self.mlp_layer = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
         self.log_softmax = nn.LogSoftmax(dim=-1)
