@@ -12,8 +12,8 @@ class Dataset(object):
 
     def __init__(self, filename,
                  max_bucket_num=80,
-                 char_num_one_batch=5000,
-                 sent_num_one_batch=200,
+                 char_batch_size=5000,
+                 sent_batch_size=200,
                  inst_num_max=-1,
                  min_len=1,
                  shuffle=False):
@@ -42,24 +42,24 @@ class Dataset(object):
               (self._filename_short, len(self), self.char_num_total))
 
         self._sent_index = 0
-        self._char_num_one_batch = char_num_one_batch
-        self._sent_num_one_batch = sent_num_one_batch
-        assert self._char_num_one_batch > 0 or self._sent_num_one_batch > 0
+        self._char_batch_size = char_batch_size
+        self._sent_batch_size = sent_batch_size
+        assert self._char_batch_size > 0 or self._sent_batch_size > 0
 
         self._bucket_num = -1
         self._use_bucket = (max_bucket_num > 1)
-        self._buckets = None  # [(max_len, inst_num_one_batch, bucket)]
+        self._buckets = None  # [(max_len, inst_batch_size, bucket)]
         self._bucket_sent_index = 0
         self._shuffle = shuffle
 
         if self._use_bucket:
-            assert (self._char_num_one_batch > 0)
+            assert (self._char_batch_size > 0)
             len_counter = Counter([len(inst) for inst in self.all_inst])
 
             # Automatically decide the bucket num according to the data
             self._bucket_num = min(max_bucket_num,
                                    math.ceil(len(len_counter)/1.5),
-                                   math.ceil(self.char_num_total/(2*self._char_num_one_batch)))
+                                   math.ceil(self.char_num_total/(2*self._char_batch_size)))
 
             assert self._bucket_num > 0
 
@@ -72,23 +72,23 @@ class Dataset(object):
             for inst in self.all_inst:
                 buckets[len2bucket_idx[len(inst)]].append(inst)
             batch_num_total = 0
-            inst_num_one_batch_buckets = []
+            inst_batch_size_buckets = []
             for (i, max_len) in enumerate(max_len_buckets):
                 inst_num = len(buckets[i])
                 batch_num_to_provide = max(
-                    1, round(inst_num * max_len / self._char_num_one_batch)
+                    1, round(inst_num * max_len / self._char_batch_size)
                 )
                 print("i, inst_num, max_len, batch_num_to_provide, batch_num_total = ",
                       i, inst_num, max_len, batch_num_to_provide, batch_num_total)
                 batch_num_total += batch_num_to_provide
-                inst_num_one_batch = math.ceil(inst_num / batch_num_to_provide)
+                inst_batch_size = math.ceil(inst_num / batch_num_to_provide)
                 # The goal is to avoid the last batch of one bucket contains too few instances
-                inst_num_one_batch_buckets.append(inst_num_one_batch)
-                # assert inst_num_one_batch * (batch_num_to_provide-0.5) < inst_num
+                inst_batch_size_buckets.append(inst_batch_size)
+                # assert inst_batch_size * (batch_num_to_provide-0.5) < inst_num
             print('%s can provide %d batches in total with %d buckets' %
                   (self._filename_short, batch_num_total, self._bucket_num))
             self._buckets = [(ml, nb, b)
-                             for ml, nb, b in zip(max_len_buckets, inst_num_one_batch_buckets, buckets)]
+                             for ml, nb, b in zip(max_len_buckets, inst_batch_size_buckets, buckets)]
 
     def __len__(self):
         return len(self._instances)
@@ -123,9 +123,9 @@ class Dataset(object):
                 random.shuffle(self._buckets)
             raise StopIteration
 
-        max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_sent_index]
+        max_len, inst_batch_size, this_bucket = self._buckets[self._bucket_sent_index]
         assert self._sent_index < len(this_bucket)
-        idx_next_batch = self._sent_index + inst_num_one_batch
+        idx_next_batch = self._sent_index + inst_batch_size
         one_batch = this_bucket[self._sent_index:idx_next_batch]
         assert len(one_batch) > 0
         if idx_next_batch >= len(this_bucket):
@@ -145,7 +145,7 @@ class Dataset(object):
 
         char_num_accum, one_batch = 0, []
         for inst in self._instances[self._sent_index:]:
-            if char_num_accum + len(inst) > self._char_num_one_batch + 25:
+            if char_num_accum + len(inst) > self._char_batch_size + 25:
                 return one_batch  # not include this instance
             one_batch.append(inst)
             char_num_accum += len(inst)

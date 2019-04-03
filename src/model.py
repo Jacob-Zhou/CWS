@@ -21,8 +21,8 @@ class CWSModel(nn.Module):
         self.emb_bichars = None
         self.emb_drop_layer = None
         self.lstm_layer = None
-        self.mlp_layer = None
-        self.loss_func = None
+        self.ffn = None
+        self.criterion = None
 
     @property
     def name(self):
@@ -46,13 +46,12 @@ class CWSModel(nn.Module):
                                   bidirectional=True,
                                   num_layers=self._conf.lstm_layer_num)
 
-        self.mlp_layer = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
-        self.log_softmax = nn.LogSoftmax(dim=-1)
-        self.loss_func = nn.NLLLoss()
+        self.ffn = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
+        self.criterion = nn.CrossEntropyLoss()
         print('init models done')
 
     def reset_parameters(self):
-        nn.init.xavier_uniform_(self.mlp_layer.weight)
+        nn.init.xavier_uniform_(self.ffn.weight)
 
     def put_models_on_gpu_if_need(self):
         if not self._use_cuda:
@@ -70,17 +69,16 @@ class CWSModel(nn.Module):
         sorted_lens, sorted_indices = torch.sort(sen_lens, descending=True)
         inverse_indices = sorted_indices.argsort()
         x = pack_padded_sequence(x[sorted_indices], sorted_lens, True)
-
         x, _ = self.lstm_layer(x)
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices]
-        x = self.mlp_layer(x)
-        x = self.log_softmax(x)
+
+        x = self.ffn(x)
 
         return x
 
-    def get_loss(self, mlp_out, target, mask):
-        return self.loss_func(mlp_out[mask], target[mask])
+    def get_loss(self, out, target, mask):
+        return self.criterion(out[mask], target[mask])
 
     def load_model(self, path, eval_num):
         path = os.path.join(path, 'models.%s.%d' % (self.name, eval_num))

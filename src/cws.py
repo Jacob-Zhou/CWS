@@ -15,6 +15,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 
 class CWS(object):
+
     def __init__(self, conf):
         self._conf = conf
         self._device = torch.device(self._conf.device)
@@ -22,7 +23,8 @@ class CWS(object):
         self._use_cuda, self._cuda_device = ('cuda' == self._device.type,
                                              self._device.index)
         if self._use_cuda:
-            # please note that the index is the relative index in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
+            # please note that the index is the relative index
+            # in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
             assert 0 <= self._cuda_device < 8
             os.environ["CUDA_VISIBLE_DEVICES"] = str(self._cuda_device)
             # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../main.py ...
@@ -51,19 +53,20 @@ class CWS(object):
             [1., 0., 0., 1.]   # S
         ]).log()  # (FROM->TO)
 
-        self._eval_metrics = Metric()
+        self._metric = Metric()
         self._model = CWSModel('ws', conf, self._use_cuda)
 
     def run(self):
         if self._conf.is_train:
-            self.open_and_load_datasets(self._conf.train_files,
-                                        self._train_datasets,
-                                        inst_num_max=self._conf.inst_num_max,
-                                        shuffle=True)
+            self.load_datasets(self._conf.train_files,
+                               self._train_datasets,
+                               inst_num_max=self._conf.inst_num_max,
+                               shuffle=True)
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 for dataset in self._train_datasets:
                     self.create_dictionaries(dataset)
+
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
 
@@ -79,23 +82,25 @@ class CWS(object):
                                 len(self._label_dict))
 
         if self._conf.is_train:
-            self.open_and_load_datasets(self._conf.dev_files,
-                                        self._dev_datasets,
-                                        inst_num_max=self._conf.inst_num_max)
+            self.load_datasets(self._conf.dev_files,
+                               self._dev_datasets,
+                               inst_num_max=self._conf.inst_num_max)
 
-        self.open_and_load_datasets(self._conf.test_files,
-                                    self._test_datasets,
-                                    inst_num_max=self._conf.inst_num_max)
+        self.load_datasets(self._conf.test_files,
+                           self._test_datasets,
+                           inst_num_max=self._conf.inst_num_max)
 
-        print('numeralizing all instances in all datasets')
-        for dataset in self._train_datasets + self._dev_datasets + self._test_datasets:
-            self.numeralize_all_instances(dataset, self._label_dict)
+        print('numericalizing all instances in all datasets')
+        for dataset in self._train_datasets + self._dev_datasets + \
+                self._test_datasets:
+            self.numericalize_all_instances(dataset)
 
         if self._conf.is_train:
             self._model.load_model(self._conf.model_dir, 0)
         else:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
+        print(self._model)
 
         if self._use_cuda:
             # self._model.cuda()
@@ -103,7 +108,6 @@ class CWS(object):
             self._strans = self._strans.to(self._cuda_device)
             self._etrans = self._etrans.to(self._cuda_device)
             self._trans = self._trans.to(self._cuda_device)
-        print(self._model)
 
         if self._conf.is_train:
             assert self._optimizer is None
@@ -116,26 +120,26 @@ class CWS(object):
         for dataset in self._test_datasets:
             self.evaluate(dataset=dataset,
                           output_filename=dataset.filename_short + '.out')
-            self._eval_metrics.compute_and_output(self._test_datasets[0],
-                                                  self._conf.model_eval_num)
-            self._eval_metrics.clear()
+            self._metric.compute_and_output(self._test_datasets[0],
+                                            self._conf.model_eval_num)
+            self._metric.clear()
 
     def train(self):
         best_eval_cnt, best_accuracy = 0, 0.
-        self._eval_metrics.clear()
+        self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
             for batch in self._train_datasets[0]:
                 self.train_or_eval_one_batch(batch)
-            self._eval_metrics.compute_and_output(self._train_datasets[0],
-                                                  eval_cnt)
-            self._eval_metrics.clear()
+            self._metric.compute_and_output(self._train_datasets[0],
+                                            eval_cnt)
+            self._metric.clear()
 
             self.evaluate(self._dev_datasets[0])
-            self._eval_metrics.compute_and_output(self._dev_datasets[0],
-                                                  eval_cnt)
-            current_fmeasure = self._eval_metrics.fscore
-            self._eval_metrics.clear()
+            self._metric.compute_and_output(self._dev_datasets[0],
+                                            eval_cnt)
+            current_fmeasure = self._metric.fscore
+            self._metric.clear()
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.save_model_after_eval_num:
@@ -145,26 +149,29 @@ class CWS(object):
                                            eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
                                   output_filename=None)
-                    self._eval_metrics.compute_and_output(self._test_datasets[0],
-                                                          eval_cnt)
-                    self._eval_metrics.clear()
+                    self._metric.compute_and_output(self._test_datasets[0],
+                                                    eval_cnt)
+                    self._metric.clear()
 
                 best_eval_cnt = eval_cnt
                 best_accuracy = current_fmeasure
 
             if best_eval_cnt + self._conf.patience <= eval_cnt:
                 break
+        print("The training ended at epoch %d" % eval_cnt)
+        print("The best fscore of dev is %.3f at epoch %d" %
+              (best_accuracy, eval_cnt))
 
-    def train_or_eval_one_batch(self, one_batch):
+    def train_or_eval_one_batch(self, insts):
         print('.', end='')
-        chars, bichars, labels = self.compose_batch_data(one_batch)
+        chars, bichars, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        mlp_out = self._model(chars, bichars)
+        out = self._model(chars, bichars)
         time2 = time.time()
 
-        label_loss = self._model.get_loss(mlp_out, labels, mask)
-        self._eval_metrics.loss_accumulated += label_loss.item()
+        label_loss = self._model.get_loss(out, labels, mask)
+        self._metric.loss_accumulated += label_loss.item()
         time3 = time.time()
 
         if self.training:
@@ -174,14 +181,14 @@ class CWS(object):
             self._optimizer.step()
         time4 = time.time()
 
-        self.decode(mlp_out, one_batch, mask)
+        self.decode(out, insts, mask)
         time5 = time.time()
 
-        self._eval_metrics.sent_num += len(one_batch)
-        self._eval_metrics.forward_time += time2 - time1
-        self._eval_metrics.loss_time += time3 - time2
-        self._eval_metrics.backward_time += time4 - time3
-        self._eval_metrics.decode_time += time5 - time4
+        self._metric.sent_num += len(insts)
+        self._metric.forward_time += time2 - time1
+        self._metric.loss_time += time3 - time2
+        self._metric.backward_time += time4 - time3
+        self._metric.decode_time += time5 - time4
 
     @torch.no_grad()
     def evaluate(self, dataset, output_filename=None):
@@ -196,10 +203,12 @@ class CWS(object):
                     inst.write(out_file)
 
     ''' 2018.11.3 by Zhenghua
-    I found that using multi-thread for non-viterbi (local) decoding is actually
-    much slower than single-thread (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
+    I found that using multi-thread for non-viterbi (local) decoding is
+    actually much slower than single-thread
+    (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
     NOTICE:
-        multi-process: CAN NOT CWS.set_predict_result(inst, head_pred, label_pred, label_dict),
+        multi-process: CAN NOT CWS.set_predict_result(inst, head_pred,
+                                                      label_pred, label_dict),
         this will not change inst of the invoker
     '''
 
@@ -208,16 +217,16 @@ class CWS(object):
             lengths = [len(i) for i in insts]
             predicts = torch.split(emit.argmax(-1)[mask], lengths)
         else:
-            emit, mask = emit.transpose(0, 1), mask.t()
+            lens = [len(i) for i in insts]
+            emit = emit.transpose(0, 1).log_softmax(dim=-1)
             T, B, N = emit.shape
-            lens = mask.sum(dim=0)
+
             delta = emit.new_zeros(T, B, N)
             paths = emit.new_zeros(T, B, N, dtype=torch.long)
 
             delta[0] = self._strans + emit[0]  # [B, N]
 
             for i in range(1, T):
-                # [B, N, N]
                 scores = self._trans.unsqueeze(0) + delta[i - 1].unsqueeze(-1)
                 scores, paths[i] = torch.max(scores, dim=1)
                 delta[i] = scores + emit[i]
@@ -237,8 +246,7 @@ class CWS(object):
 
         for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred, self._label_dict)
-            CWS.compute_accuracy_one_inst(
-                inst, self._eval_metrics, self.training)
+            CWS.compute_accuracy_one_inst(inst, self._metric, self.training)
 
     def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
@@ -247,7 +255,7 @@ class CWS(object):
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
                 self._label_dict.add_key_into_counter(inst.labels_s[i])
 
-    def numeralize_all_instances(self, dataset, label_dict):
+    def numericalize_all_instances(self, dataset):
         for inst in dataset.all_inst:
             inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                          for i in inst.chars_s])
@@ -285,22 +293,23 @@ class CWS(object):
         else:
             print('Delete model %s error, not exist.' % path)
 
-    def open_and_load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
+    def load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
         assert len(datasets) == 0
         names = filenames.strip().split(':')
         assert len(names) > 0
         for name in names:
-            datasets.append(Dataset(filename=name,
-                                    max_bucket_num=self._conf.max_bucket_num,
-                                    char_num_one_batch=self._conf.char_num_one_batch,
-                                    sent_num_one_batch=self._conf.sent_num_one_batch,
-                                    inst_num_max=inst_num_max,
-                                    shuffle=shuffle))
+            dataset = Dataset(filename=name,
+                              max_bucket_num=self._conf.max_bucket_num,
+                              char_batch_size=self._conf.char_batch_size,
+                              sent_batch_size=self._conf.sent_batch_size,
+                              inst_num_max=inst_num_max,
+                              shuffle=shuffle)
+            datasets.append(dataset)
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):
         inst.labels_i_pred = pred
-        inst.labels_s_predict = [label_dict.get_str(i) for i in pred.tolist()]
+        inst.labels_s_pred = [label_dict.get_str(i) for i in pred.tolist()]
 
     @staticmethod
     def compute_accuracy_one_inst(inst, eval_metrics, training):
@@ -316,10 +325,10 @@ class CWS(object):
         self.training = training
         self._model.train(training)
 
-    def compose_batch_data(self, one_batch):
-        chars = pad_sequence([inst.chars_i for inst in one_batch], True)
-        bichars = pad_sequence([inst.bichars_i for inst in one_batch], True)
-        labels = pad_sequence([inst.labels_i for inst in one_batch], True)
+    def compose_batch(self, insts):
+        chars = pad_sequence([inst.chars_i for inst in insts], True)
+        bichars = pad_sequence([inst.bichars_i for inst in insts], True)
+        labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()
