@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 from configparser import ConfigParser
 
 
@@ -155,10 +154,6 @@ class Configurable(object):
     @property
     def patience(self):
         return self._conf.getint('Train', 'patience')
-
-    @property
-    def save_model_after_eval_num(self):
-        return self._conf.getint('Train', 'save_model_after_eval_num')
 
     @property
     def lstm_layer_num(self):

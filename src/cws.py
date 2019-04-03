@@ -6,7 +6,6 @@ import time
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from src.common import bos, eos, pad, unk
 from src.metric import Metric
 from src.model import CWSModel
@@ -239,9 +238,9 @@ class CWS(object):
             emit = emit.argmax(-1)[:, :, 0]
             predicts = [emit[i][:len(inst)] for i, inst in enumerate(insts)]
         else:
-            # fill the padded part with -inf
-            emit = emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
-            # emit = F.log_softmax(emit, dim=-1)
+            # # fill the padded part with -inf
+            # emit = emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
+            # # emit = F.log_softmax(emit, dim=-1)
             emit = emit.permute(1, 2, 0, 3)
             seq_len, word_length, batch_size, n_labels = emit.shape
             lens = [len(i) for i in insts]
@@ -299,7 +298,8 @@ class CWS(object):
             for i in range(len(inst)):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
-                for subword in inst.subwords_s[i]:
+                self._subword_dict.add_key_into_counter(inst.chars_s[i])
+                for subword in inst.subwords_s[i][1:]:
                     if subword in self._pretrained:
                         self._subword_dict.add_key_into_counter(subword)
                 for sublabel in inst.sublabels_s[i]:
