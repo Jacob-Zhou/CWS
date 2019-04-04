@@ -18,9 +18,9 @@ class CWSModel(nn.Module):
         self._use_cuda = use_cuda
         self._name = name
 
-        self.emb_chars = None
-        self.emb_bichars = None
-        self.emb_subwords = None
+        self.emb_char = None
+        self.emb_bichar = None
+        self.emb_subword = None
         self.pretrained = None
         self.emb_drop_layer = None
         self.lstm_layer = None
@@ -32,40 +32,26 @@ class CWSModel(nn.Module):
         return self._name
 
     # create and init all the models needed according to config
-    def init_models(self, char_dict_size, bichar_dict_size,
-                    subword_dict_size, label_dict_size):
-        assert char_dict_size > 0
-        assert bichar_dict_size > 0
-        assert subword_dict_size > 0
-        assert label_dict_size > 0
-
-        self.emb_chars = nn.Embedding(num_embeddings=char_dict_size,
-                                      embedding_dim=self._conf.char_emb_dim)
-        self.emb_bichars = nn.Embedding(num_embeddings=bichar_dict_size,
-                                        embedding_dim=self._conf.char_emb_dim)
-        self.emb_subwords = nn.Embedding(num_embeddings=subword_dict_size,
-                                         embedding_dim=self._conf.subword_emb_dim)
+    def init_models(self, char_dict, bichar_dict, subword_dict, label_dict):
+        self.emb_char = nn.Embedding(num_embeddings=len(char_dict),
+                                     embedding_dim=self._conf.char_emb_dim)
+        self.emb_bichar = nn.Embedding(num_embeddings=len(bichar_dict),
+                                       embedding_dim=self._conf.char_emb_dim)
+        self.emb_subword = nn.Embedding(num_embeddings=subword_dict.init_num,
+                                        embedding_dim=self._conf.subword_emb_dim)
+        if subword_dict.embed is not None:
+            self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
         self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
                                   hidden_size=self._conf.lstm_hidden_dim//2,
                                   batch_first=True,
-                                  bidirectional=True,
-                                  num_layers=self._conf.lstm_layer_num,
-                                  dropout=self._conf.lstm_dropout)
+                                  bidirectional=True)
 
-        self.ffn = nn.Linear(self._conf.lstm_hidden_dim + self._conf.subword_emb_dim,
-                             label_dict_size)
+        self.ffn = nn.Linear(in_features=self._conf.lstm_hidden_dim + self._conf.subword_emb_dim,
+                             out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         print('init models done')
-
-    def reset_parameters(self):
-        nn.init.xavier_uniform_(self.ffn.weight)
-
-    def load_pretrained(self, embeddings):
-        self.pretrained = nn.Embedding.from_pretrained(embeddings=embeddings,
-                                                       freeze=False)
-        nn.init.zeros_(self.emb_subwords.weight)
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)

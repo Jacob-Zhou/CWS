@@ -6,11 +6,11 @@ import time
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from src.common import bos, eos, pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.optimizer import Optimizer
-from src.utils import Dataset, Embedding, Instance, VocabDict
+from src.utils import Dataset, Instance, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -60,8 +60,6 @@ class CWS(object):
         self._model = CWSModel('ws', conf, self._use_cuda)
 
     def run(self):
-        # get pretrained subword embedding and corresponding vocabularies
-        self._pretrained = Embedding.load(self._conf.emb_subword_file)
         if self._conf.is_train:
             self.load_datasets(self._conf.train_files,
                                self._train_datasets,
@@ -75,19 +73,8 @@ class CWS(object):
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
 
-                self._model.init_models(len(self._char_dict),
-                                        len(self._bichar_dict),
-                                        len(self._subword_dict),
-                                        len(self._label_dict))
-                self._model.reset_parameters()
-                self._model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
-        self._model.init_models(len(self._char_dict),
-                                len(self._bichar_dict),
-                                len(self._subword_dict),
-                                len(self._label_dict))
-
         if self._conf.is_train:
             self.load_datasets(self._conf.dev_files,
                                self._dev_datasets,
@@ -97,22 +84,19 @@ class CWS(object):
                            self._test_datasets,
                            inst_num_max=self._conf.inst_num_max)
 
-        # extend the dict with words in pretrained
-        # keep the position of existing words unchanged
-        self._subword_dict.extend(self._pretrained.words)
+        # self._subword_dict.read_embeddings(self._conf.emb_subword_file)
         print('numericalizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + \
                 self._test_datasets:
             self.numericalize_all_instances(dataset)
 
         if self._conf.is_train:
-            self._model.load_model(self._conf.model_dir, 0)
+            self._model.init_models(self._char_dict,
+                                    self._bichar_dict,
+                                    self._label_dict)
         else:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
-        # self._model.load_pretrained(
-        #     self._pretrained.get_embeddings(self._subword_dict.tokens)
-        # )
         print(self._model)
 
         if self._use_cuda:
@@ -124,8 +108,8 @@ class CWS(object):
 
         if self._conf.is_train:
             assert self._optimizer is None
-            self._optimizer = Optimizer(self._model.parameters(),
-                                        self._conf)
+            self._optimizer = optim.Adam(lr=self._conf.lr,
+                                         params=self._model.parameters())
             self.train()
             return
 
@@ -143,6 +127,7 @@ class CWS(object):
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
             for batch in self._train_datasets[0]:
+                self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch)
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
@@ -151,9 +136,6 @@ class CWS(object):
             self.evaluate(self._dev_datasets[0])
             self._metric.compute_and_output(self._dev_datasets[0],
                                             eval_cnt)
-            # for inst in self._dev_datasets[0].all_inst:
-            #     print(inst.labels_s)
-            #     print(inst.labels_s_pred)
             current_fmeasure = self._metric.fscore
             self._metric.clear()
 
@@ -341,8 +323,10 @@ class CWS(object):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
+                             cutoff_freq=self._conf.cutoff_freq,
                              default_keys=[pad, unk, bos, eos])
         self._bichar_dict.load(path + self._bichar_dict.name,
+                               cutoff_freq=self._conf.cutoff_freq,
                                default_keys=[pad, unk, bos, eos])
         self._subword_dict.load(path + self._subword_dict.name,
                                 cutoff_freq=self._conf.cutoff_freq,
