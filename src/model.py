@@ -17,8 +17,8 @@ class CWSModel(nn.Module):
         self._use_cuda = use_cuda
         self._name = name
 
-        self.emb_chars = None
-        self.emb_bichars = None
+        self.emb_char = None
+        self.emb_bichar = None
         self.emb_drop_layer = None
         self.lstm_layer = None
         self.ffn = None
@@ -29,42 +29,30 @@ class CWSModel(nn.Module):
         return self._name
 
     # create and init all the models needed according to config
-    def init_models(self, char_dict_size, bichar_dict_size, label_dict_size):
-        assert char_dict_size > 0
-        assert bichar_dict_size > 0
-        assert label_dict_size > 0
-
-        self.emb_chars = nn.Embedding(num_embeddings=char_dict_size,
-                                      embedding_dim=self._conf.char_emb_dim)
-        self.emb_bichars = nn.Embedding(num_embeddings=bichar_dict_size,
-                                        embedding_dim=self._conf.char_emb_dim)
+    def init_models(self, char_dict, bichar_dict, label_dict):
+        self.emb_char = nn.Embedding(num_embeddings=len(char_dict),
+                                     embedding_dim=self._conf.char_emb_dim)
+        self.emb_bichar = nn.Embedding(num_embeddings=len(bichar_dict),
+                                       embedding_dim=self._conf.char_emb_dim)
         self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
                                   hidden_size=self._conf.lstm_hidden_dim//2,
                                   batch_first=True,
-                                  bidirectional=True,
-                                  num_layers=self._conf.lstm_layer_num)
+                                  bidirectional=True)
 
-        self.ffn = nn.Linear(self._conf.lstm_hidden_dim, label_dict_size)
+        self.ffn = nn.Linear(in_features=self._conf.lstm_hidden_dim,
+                             out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         print('init models done')
-
-    def reset_parameters(self):
-        nn.init.xavier_uniform_(self.ffn.weight)
-
-    def put_models_on_gpu_if_need(self):
-        if not self._use_cuda:
-            return
-        self.cuda()
 
     def forward(self, chars, bichars):
         mask = chars.ne(pad_index)
         sen_lens = mask.sum(1)
 
-        emb_ch = self.emb_chars(chars)
-        emb_bich = self.emb_bichars(bichars)
-        x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich), -1))
+        emb_ch = self.emb_char(chars)
+        emb_bichar = self.emb_bichar(bichars)
+        x = self.emb_drop_layer(torch.cat((emb_ch, emb_bichar), -1))
 
         sorted_lens, sorted_indices = torch.sort(sen_lens, descending=True)
         inverse_indices = sorted_indices.argsort()
