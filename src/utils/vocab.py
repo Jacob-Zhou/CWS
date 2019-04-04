@@ -2,7 +2,8 @@
 
 from collections import Counter
 
-from src.common import eos, pad, bos, unk
+import torch
+from src.common import bos, eos, pad, unk
 
 
 class VocabDict(object):
@@ -16,6 +17,7 @@ class VocabDict(object):
         self._unk_index = -1
         self._bos_index = -1
         self._eos_index = -1
+        self._embed = None
 
     def __len__(self):
         return len(self._str2id)
@@ -23,6 +25,12 @@ class VocabDict(object):
     @property
     def name(self):
         return self._name
+
+    @property
+    def init_num(self):
+        # initial num of tokens, that is, num of tokens in train
+        # before extending the vocab with pretrained files
+        return self._init_num
 
     @property
     def pad_index(self):
@@ -53,6 +61,10 @@ class VocabDict(object):
     def tokens(self):
         return self._id2str
 
+    @property
+    def embed(self):
+        return self._embed
+
     def extend(self, tokens):
         unk_tokens = sorted(token for token in tokens
                             if token not in self._str2id)
@@ -62,6 +74,42 @@ class VocabDict(object):
     #  ------ _counter ------
     def add_key_into_counter(self, k):
         self._counter[k] += 1
+
+    def get_id(self, key):
+        return self._str2id.get(key, self._unk_index)
+
+    def get_str(self, i):
+        return self._id2str[i]
+
+    def read_embeddings(self, filename, unk=None, smooth=False, init=None):
+        with open(filename, 'r') as f:
+            lines = [line for line in f]
+        splits = [line.split() for line in lines]
+        tokens, vectors = zip(*[(s[0], list(map(float, s[1:])))
+                                for s in splits])
+        # if the UNK token has existed in pretrained vocab,
+        # then replace it with a self-defined one
+        if unk:
+            tokens[tokens.index(unk)] = self.get_str(self.unk_index)
+        # add unknown tokens to vocab and update the dict
+        self._id2str += sorted(token for token in tokens
+                               if token not in self._str2id)
+        self._str2id = {token: i for i, token in enumerate(self._id2str)}
+
+        self._embed = torch.empty(len(self), len(vectors[0]))
+        if init:
+            self._embed = init(self._embed)
+        else:
+            scale = (3 / len(vectors[0])) ** 0.5
+            self._embed = self._embed.uniform_(-scale, scale)
+
+        indices = [self._str2id[token] for token in tokens]
+        vectors = torch.tensor(vectors)
+        self._embed[indices] = vectors
+        if smooth:
+            self._embed /= torch.std(self._embed)
+        print('Reading embeddings %s done: %d keys in file; %d keys in total' %
+              (filename, len(vectors), self.embed.size(0)))
 
     def save(self, filename):
         assert len(self._counter) > 0
@@ -89,15 +137,10 @@ class VocabDict(object):
                         if int(freq) > cutoff_freq)
         self._id2str = list(default_keys) + tokens
         self._str2id = {token: i for i, token in enumerate(self._id2str)}
+        self._init_num = len(self)
         self._pad_index = self._str2id.get(pad, -1)
         self._unk_index = self._str2id.get(unk, -1)
         self._bos_index = self._str2id.get(bos, -1)
         self._eos_index = self._str2id.get(eos, -1)
         print('Loading dict %s done: %d keys; unk_index=%d' %
               (self.name, len(self), self._unk_index))
-
-    def get_id(self, key):
-        return self._str2id.get(key, self._unk_index)
-
-    def get_str(self, i):
-        return self._id2str[i]
