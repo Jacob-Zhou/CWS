@@ -82,6 +82,10 @@ class Configurable(object):
         return self._conf.getint('Run', 'char_batch_size')
 
     @property
+    def cutoff_freq(self):
+        return self._conf.getint('Run', 'cutoff_freq')
+
+    @property
     def max_bucket_num(self):
         # negative means not using bucket
         return self._conf.getint('Run', 'max_bucket_num')
@@ -144,10 +148,6 @@ class Configurable(object):
         return self._conf.getint('Train', 'patience')
 
     @property
-    def lstm_layer_num(self):
-        return self._conf.getint('Network', 'lstm_layer_num')
-
-    @property
     def char_emb_dim(self):
         return self._conf.getint('Network', 'char_emb_dim')
 
@@ -162,10 +162,6 @@ class Configurable(object):
     @property
     def lr(self):
         return self._conf.getfloat('Optimizer', 'lr')
-
-    @property
-    def decay(self):
-        return self._conf.getfloat('Optimizer', 'decay')
 
     @property
     def clip(self):
