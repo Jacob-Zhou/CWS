@@ -12,7 +12,6 @@ from src.metric import Metric
 from src.model import CWSModel
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
-from torch.optim.lr_scheduler import LambdaLR
 
 
 class CWS(object):
@@ -33,7 +32,6 @@ class CWS(object):
         self.training = False
 
         self._optimizer = None
-        self._scheduler = None
         self._use_bucket = (self._conf.max_bucket_num > 1)
         self._train_datasets = []
         self._dev_datasets = []
@@ -72,17 +70,8 @@ class CWS(object):
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
 
-                self._model.init_models(len(self._char_dict),
-                                        len(self._bichar_dict),
-                                        len(self._label_dict))
-                self._model.reset_parameters()
-                self._model.save_model(self._conf.model_dir, 0)
                 return
         self.load_dictionaries(self._conf.dict_dir)
-        self._model.init_models(len(self._char_dict),
-                                len(self._bichar_dict),
-                                len(self._label_dict))
-
         if self._conf.is_train:
             self.load_datasets(self._conf.dev_files,
                                self._dev_datasets,
@@ -98,7 +87,9 @@ class CWS(object):
             self.numericalize_all_instances(dataset)
 
         if self._conf.is_train:
-            self._model.load_model(self._conf.model_dir, 0)
+            self._model.init_models(self._char_dict,
+                                    self._bichar_dict,
+                                    self._label_dict)
         else:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
@@ -112,11 +103,9 @@ class CWS(object):
             self._trans = self._trans.to(self._cuda_device)
 
         if self._conf.is_train:
-            assert self._optimizer is None and self._scheduler is None
-            self._optimizer = optim.SGD(params=self._model.parameters(),
-                                        lr=self._conf.lr)
-            self._scheduler = LambdaLR(optimizer=self._optimizer,
-                                       lr_lambda=lambda x: self._conf.lr * (1 - self._conf.decay)**x)
+            assert self._optimizer is None
+            self._optimizer = optim.Adam(lr=self._conf.lr,
+                                         params=self._model.parameters())
             self.train()
             return
 
@@ -136,7 +125,6 @@ class CWS(object):
             for batch in self._train_datasets[0]:
                 self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch)
-            self._scheduler.step()
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
             self._metric.clear()
@@ -274,8 +262,10 @@ class CWS(object):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
+                             cutoff_freq=self._conf.cutoff_freq,
                              default_keys=[pad, unk])
         self._bichar_dict.load(path + self._bichar_dict.name,
+                               cutoff_freq=self._conf.cutoff_freq,
                                default_keys=[pad, unk])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
