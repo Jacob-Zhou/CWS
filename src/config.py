@@ -129,7 +129,8 @@ class Configurable(object):
 
     @property
     def emb_subword_file(self):
-        return self._conf.get('Train', 'emb_subword_file')
+        file = self._conf.get('Train', 'emb_subword_file')
+        return file if os.path.exists(file) else None
 
     @property
     def is_dictionary_exist(self):
@@ -156,10 +157,6 @@ class Configurable(object):
         return self._conf.getint('Train', 'patience')
 
     @property
-    def lstm_layer_num(self):
-        return self._conf.getint('Network', 'lstm_layer_num')
-
-    @property
     def char_emb_dim(self):
         return self._conf.getint('Network', 'char_emb_dim')
 
@@ -176,32 +173,8 @@ class Configurable(object):
         return self._conf.getint('Network', 'lstm_hidden_dim')
 
     @property
-    def lstm_dropout(self):
-        return self._conf.getfloat('Network', 'lstm_dropout')
-
-    @property
-    def learning_rate(self):
-        return self._conf.getfloat('Optimizer', 'learning_rate')
-
-    @property
-    def decay(self):
-        return self._conf.getfloat('Optimizer', 'decay')
-
-    @property
-    def decay_steps(self):
-        return self._conf.getint('Optimizer', 'decay_steps')
-
-    @property
-    def beta_1(self):
-        return self._conf.getfloat('Optimizer', 'beta_1')
-
-    @property
-    def beta_2(self):
-        return self._conf.getfloat('Optimizer', 'beta_2')
-
-    @property
-    def epsilon(self):
-        return self._conf.getfloat('Optimizer', 'epsilon')
+    def lr(self):
+        return self._conf.getfloat('Optimizer', 'lr')
 
     @property
     def clip(self):
