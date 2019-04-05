@@ -10,7 +10,7 @@ import torch.optim as optim
 from src.common import bos, eos, pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.utils import Dataset, Instance, VocabDict
+from src.utils import Dataset, Embedding, Instance, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -36,7 +36,7 @@ class CWS(object):
         self._train_datasets = []
         self._dev_datasets = []
         self._test_datasets = []
-        self._pretrained = None
+        self._subword_pretrained = None
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
         self._subword_dict = VocabDict('subwords')
@@ -60,6 +60,7 @@ class CWS(object):
         self._model = CWSModel('ws', conf, self._use_cuda)
 
     def run(self):
+        self._subword_pretrained = Embedding.load(self._conf.emb_subword_file)
         if self._conf.is_train:
             self.load_datasets(self._conf.train_files,
                                self._train_datasets,
@@ -84,7 +85,9 @@ class CWS(object):
                            self._test_datasets,
                            inst_num_max=self._conf.inst_num_max)
 
-        # self._subword_dict.read_embeddings(self._conf.emb_subword_file)
+        self._subword_dict.read_embeddings(embed=self._subword_pretrained,
+                                           init=nn.init.zeros_,
+                                           smooth=True)
         print('numericalizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + \
                 self._test_datasets:
@@ -93,6 +96,7 @@ class CWS(object):
         if self._conf.is_train:
             self._model.init_models(self._char_dict,
                                     self._bichar_dict,
+                                    self._subword_dict,
                                     self._label_dict)
         else:
             self._model.load_model(self._conf.model_dir,
@@ -245,9 +249,9 @@ class CWS(object):
             shortcuts[0, :word_length] = self._strans + emit[0]
 
             for i in range(1, seq_len):
-                # for all sequences consisting of a subsequence and a subword,
-                # starting at 0, 1, ..., i-1 and ending at i, choose the one
-                # with max probs and record split point of its subword
+                # for all sequences consisting of a subsequence and
+                # a subword starting at 0, 1, ..., i-1 and ending at i, choose
+                # the one with max probs and record split point of its subword
                 delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
                 scores = self._trans + delta[i - 1].unsqueeze(-1)
                 scores, labels[i] = scores.max(dim=1)
@@ -285,7 +289,7 @@ class CWS(object):
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
                 self._subword_dict.add_key_into_counter(inst.chars_s[i])
                 for subword in inst.subwords_s[i][1:]:
-                    if subword in self._pretrained:
+                    if subword in self._subword_pretrained:
                         self._subword_dict.add_key_into_counter(subword)
                 for sublabel in inst.sublabels_s[i]:
                     self._label_dict.add_key_into_counter(sublabel)

@@ -74,7 +74,7 @@ class VocabDict(object):
     def get_str(self, i):
         return self._id2str[i]
 
-    def read_embeddings(self, embed, smooth=False, init=None):
+    def read_embeddings(self, embed, init=None, smooth=False):
         tokens = embed.tokens
         # if the UNK token has existed in pretrained vocab,
         # then replace it with a self-defined one

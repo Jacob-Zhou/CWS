@@ -8,7 +8,7 @@ dict_dir = exp/ctb6/
 model_dir = exp/ctb6/
 inst_num_max = -1
 max_bucket_num = 72
-sent_batch_size = 50
+sent_batch_size = 10
 char_batch_size = 500
 
 [Test]
@@ -19,7 +19,7 @@ data_dir = data
 train_files = %(data_dir)s/ctb6/train.conll
 dev_files = %(data_dir)s/ctb6/dev.conll
 test_files = %(data_dir)s/ctb6/test.conll
-emb_subword_file = %(data_dir)s/Giga-coarse-fine.dict.txt
+emb_subword_file = %(data_dir)s/giga.subwords.50b.txt
 is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 50

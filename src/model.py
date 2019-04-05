@@ -51,24 +51,25 @@ class CWSModel(nn.Module):
         self.ffn = nn.Linear(in_features=self._conf.lstm_hidden_dim + self._conf.subword_emb_dim,
                              out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
+        self.reset_parameters()
         print('init models done')
+
+    def reset_parameters(self):
+        if self.pretrained is not None:
+            nn.init.zeros_(self.emb_subword.weight)
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
         batch_size, seq_len, word_length = subwords.shape
         lens = mask.sum(1)
 
-        emb_ch = self.emb_chars(chars)
-        emb_bich = self.emb_bichars(bichars)
-        # emb_subword = self.pretrained(subwords)
-        # # set indices larger than num_embeddings to unk_index, that is
-        # # make all subwords not in emb_subword but in pretrained to unk
-        # emb_subword += self.emb_subwords(
-        #     subwords.masked_fill_(subwords.ge(self.emb_subwords.num_embeddings),
-        #                           unk_index)
-        # )
-        emb_subword = self.emb_subwords(
-            subwords.masked_fill_(subwords.ge(self.emb_subwords.num_embeddings),
+        emb_ch = self.emb_char(chars)
+        emb_bich = self.emb_bichar(bichars)
+        emb_subword = self.pretrained(subwords)
+        # set indices larger than num_embeddings to unk_index, that is
+        # make all subwords not in emb_subword but in pretrained to unk
+        emb_subword += self.emb_subword(
+            subwords.masked_fill_(subwords.ge(self.emb_subword.num_embeddings),
                                   unk_index)
         )
         x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich), -1))
