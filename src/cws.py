@@ -10,7 +10,7 @@ import torch.optim as optim
 from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.utils import Dataset, VocabDict
+from src.utils import Dataset, Embedding, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -36,6 +36,7 @@ class CWS(object):
         self._train_datasets = []
         self._dev_datasets = []
         self._test_datasets = []
+        self._char_pretrained = None
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
@@ -86,6 +87,8 @@ class CWS(object):
                 self._test_datasets:
             self.numericalize_all_instances(dataset)
 
+        if self._char_pretrained is not None:
+            self._char_dict.read_embeddings(self._char_pretrained)
         if self._conf.is_train:
             self._model.init_models(self._char_dict,
                                     self._bichar_dict,
