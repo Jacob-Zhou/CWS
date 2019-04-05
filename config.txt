@@ -22,8 +22,8 @@ test_files = %(data_dir)s/ctb6/test.conll
 is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 50
-patience = 10
 cutoff_freq = 1
+patience = 10
 
 [Network]
 char_emb_dim = 50
