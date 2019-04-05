@@ -39,8 +39,8 @@ class CWSModel(nn.Module):
                                        embedding_dim=self._conf.char_emb_dim)
         self.emb_subword = nn.Embedding(num_embeddings=subword_dict.init_num,
                                         embedding_dim=self._conf.subword_emb_dim)
-        if subword_dict.embed is not None:
-            self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
+        # if subword_dict.embed is not None:
+        #     self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
         self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
@@ -60,18 +60,17 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
-        batch_size, seq_len, word_length = subwords.shape
+        ext_mask = subwords.ge(self.emb_subword.num_embeddings)
+        batch_size, seq_len, max_len = subwords.shape
         lens = mask.sum(1)
 
         emb_ch = self.emb_char(chars)
         emb_bich = self.emb_bichar(bichars)
-        emb_subword = self.pretrained(subwords)
-        # set indices larger than num_embeddings to unk_index, that is
-        # make all subwords not in emb_subword but in pretrained to unk
-        emb_subword += self.emb_subword(
-            subwords.masked_fill_(subwords.ge(self.emb_subword.num_embeddings),
-                                  unk_index)
-        )
+        # emb_sub = self.pretrained(subwords)
+        # # set indices larger than num_embeddings to unk_index, that is,
+        # # make all subwords not in emb_subword but in pretrained to unk
+        # emb_sub += self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
+        emb_sub = self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
         x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich), -1))
 
         sorted_lens, sorted_indices = torch.sort(lens, descending=True)
@@ -81,18 +80,17 @@ class CWSModel(nn.Module):
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices].transpose(0, 1)
 
-        x = x.unsqueeze(1) - x
         x_f, x_b = x.chunk(2, dim=-1)
-        x_f = x_f[1:-1, :-2].permute(2, 1, 0, 3)
-        x_b = x_b[1:-1, 2:].permute(2, 0, 1, 3)
-        x_span = torch.cat([x_f, x_b], dim=-1)
-        x_span = pad_sequence([
-            x_span.diagonal(offset=i, dim1=1, dim2=2).permute(2, 0, 1)
-            for i in range(word_length)
-        ], True)
-        x_span = x_span.transpose(0, 2)
+        x_sub_f = pad_sequence([x_f[i:i+max_len]
+                                for i in range(1, seq_len + 1)])
+        x_sub_b = pad_sequence([x_b[i:i+max_len]
+                                for i in range(2, seq_len + 2)])
+        x_f, x_b = x_f[:-2], x_b[1:-1]
+        x_span_f = x_sub_f - x_f
+        x_span_b = x_b - x_sub_b
+        x_span = torch.cat([x_span_f, x_span_b], dim=-1).transpose(0, 2)
 
-        x = torch.cat([x_span, emb_subword], dim=-1)
+        x = torch.cat([x_span, emb_sub], dim=-1)
         x = self.ffn(x)
 
         return x
