@@ -74,35 +74,30 @@ class VocabDict(object):
     def get_str(self, i):
         return self._id2str[i]
 
-    def read_embeddings(self, filename, unk=None, smooth=False, init=None):
-        with open(filename, 'r') as f:
-            lines = [line for line in f]
-        splits = [line.split() for line in lines]
-        tokens, vectors = zip(*[(s[0], list(map(float, s[1:])))
-                                for s in splits])
+    def read_embeddings(self, embed, smooth=False, init=None):
+        tokens = embed.tokens
         # if the UNK token has existed in pretrained vocab,
         # then replace it with a self-defined one
-        if unk:
+        if embed.unk:
             tokens[tokens.index(unk)] = self.get_str(self.unk_index)
         # add unknown tokens to vocab and update the dict
         self._id2str += sorted(token for token in tokens
                                if token not in self._str2id)
         self._str2id = {token: i for i, token in enumerate(self._id2str)}
 
-        self._embed = torch.empty(len(self), len(vectors[0]))
+        self._embed = torch.empty(len(self), embed.dim)
         if init:
             self._embed = init(self._embed)
         else:
-            scale = (3 / len(vectors[0])) ** 0.5
+            scale = (3 / embed.dim) ** 0.5
             self._embed = self._embed.uniform_(-scale, scale)
 
         indices = [self._str2id[token] for token in tokens]
-        vectors = torch.tensor(vectors)
-        self._embed[indices] = vectors
+        self._embed[indices] = embed.vectors
         if smooth:
             self._embed /= torch.std(self._embed)
         print('Reading embeddings %s done: %d keys in file; %d keys in total' %
-              (filename, len(vectors), self.embed.size(0)))
+              (embed.name, len(embed), self.embed.size(0)))
 
     def save(self, filename):
         assert len(self._counter) > 0
