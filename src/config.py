@@ -82,10 +82,6 @@ class Configurable(object):
         return self._conf.getint('Run', 'char_batch_size')
 
     @property
-    def cutoff_freq(self):
-        return self._conf.getint('Run', 'cutoff_freq')
-
-    @property
     def max_bucket_num(self):
         # negative means not using bucket
         return self._conf.getint('Run', 'max_bucket_num')
@@ -146,6 +142,10 @@ class Configurable(object):
     @property
     def patience(self):
         return self._conf.getint('Train', 'patience')
+
+    @property
+    def cutoff_freq(self):
+        return self._conf.getint('Train', 'cutoff_freq')
 
     @property
     def char_emb_dim(self):
