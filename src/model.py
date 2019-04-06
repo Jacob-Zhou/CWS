@@ -85,7 +85,8 @@ class CWSModel(nn.Module):
                                 for i in range(1, seq_len + 1)])
         x_sub_b = pad_sequence([x_b[i:i+max_len]
                                 for i in range(2, seq_len + 2)])
-        x_f, x_b = x_f[:-2], x_b[1:-1]
+        x_f = x_f[0:-2].expand_as(x_sub_f)
+        x_b = x_b[1:-1].expand_as(x_sub_b)
         x_span_f = x_sub_f - x_f
         x_span_b = x_b - x_sub_b
         x_span = torch.cat([x_span_f, x_span_b], dim=-1).transpose(0, 2)
