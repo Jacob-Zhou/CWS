@@ -38,7 +38,9 @@ class CWSModel(nn.Module):
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
                                   hidden_size=self._conf.lstm_hidden_dim//2,
+                                  num_layers=self._conf.num_lstm_layers,
                                   batch_first=True,
+                                  dropout=self._conf.lstm_dropout,
                                   bidirectional=True)
 
         self.ffn = nn.Linear(in_features=self._conf.lstm_hidden_dim,
