@@ -173,6 +173,14 @@ class Configurable(object):
         return self._conf.getint('Network', 'lstm_hidden_dim')
 
     @property
+    def num_lstm_layers(self):
+        return self._conf.getint('Network', 'num_lstm_layers')
+
+    @property
+    def lstm_dropout(self):
+        return self._conf.getfloat('Network', 'lstm_dropout')
+
+    @property
     def lr(self):
         return self._conf.getfloat('Optimizer', 'lr')
 
