@@ -7,10 +7,10 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from src.common import bos, eos, pad, unk
+from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.utils import Dataset, Embedding, Instance, VocabDict
+from src.utils import Dataset, Embedding, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -45,15 +45,14 @@ class CWS(object):
 
         # transition scores of the labels
         # make sure the label dict have been sorted
-        # [B, E, M, S, X]
-        self._strans = torch.tensor([1., 0., 0., 1., 0.]).log()
-        self._etrans = torch.tensor([0., 1., 0., 1., 0.]).log()
+        # [B, E, M, S]
+        self._strans = torch.tensor([1., 0., 0., 1.]).log()
+        self._etrans = torch.tensor([0., 1., 0., 1.]).log()
         self._trans = torch.tensor([
-            [0., 1., 1., 0., 0.],  # B
-            [1., 0., 0., 1., 0.],  # E
-            [0., 1., 1., 0., 0.],  # M
-            [1., 0., 0., 1., 0.],  # S
-            [0., 0., 0., 0., 0.]   # X
+            [0., 1., 1., 0.],  # B
+            [1., 0., 0., 1.],  # E
+            [0., 1., 1., 0.],  # M
+            [1., 0., 0., 1.]   # S
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
@@ -166,20 +165,13 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts):
         print('.', end='')
-        # shape of the following tensors:
-        # chars: [batch_size, seq_len + 2]
-        # bichars: [batch_size, seq_len + 2]
-        # subwords: [batch_size, seq_len, word_length]
-        # sublabels: [batch_size, seq_len, word_length]
-        # the bos and eos tokens are added to each char sequence
-        chars, bichars, subwords, sublabels = self.compose_batch(insts)
-        # ignore all pad and unk tokens in subwords
-        subword_mask = subwords.ne(self._subword_dict.pad_index)[:, 1:-1]
+        chars, bichars, subwords, labels = self.compose_batch(insts)
+        mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
 
-        label_loss = self._model.get_loss(out, sublabels, subword_mask)
+        label_loss = self._model.get_loss(out, labels, mask)
         self._metric.loss_accumulated += label_loss.item()
         time3 = time.time()
 
@@ -190,7 +182,7 @@ class CWS(object):
             self._optimizer.step()
         time4 = time.time()
 
-        self.decode(out, insts, subword_mask)
+        self.decode(out, insts, mask)
         time5 = time.time()
 
         self._metric.sent_num += len(insts)
@@ -213,60 +205,35 @@ class CWS(object):
 
     def decode(self, emit, insts, mask):
         if self.training:
-            # only contains subwords with a single character
-            emit = emit.argmax(-1)[:, :, 0]
-            predicts = [emit[i][:len(inst)] for i, inst in enumerate(insts)]
+            lengths = [len(i) for i in insts]
+            predicts = torch.split(emit.argmax(-1)[mask], lengths)
         else:
-            # # fill the padded part with -inf
-            # emit = emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
-            # # emit = F.log_softmax(emit, dim=-1)
-            emit = emit.permute(1, 2, 0, 3)
-            seq_len, word_length, batch_size, n_labels = emit.shape
             lens = [len(i) for i in insts]
+            emit = emit.transpose(0, 1).log_softmax(dim=-1)
+            T, B, N = emit.shape
 
-            # [seq_len, batch_size, n_labels]
-            delta = emit.new_zeros(seq_len, batch_size, n_labels)
-            labels = emit.new_zeros(seq_len, batch_size, n_labels).long()
-            splits = emit.new_zeros(seq_len, batch_size, n_labels).long()
+            delta = emit.new_zeros(T, B, N)
+            paths = emit.new_zeros(T, B, N, dtype=torch.long)
 
-            # shortcuts[i] corresponds to max log probs of all subwords,
-            # starting at i, only the upper triangular part are valid shortcuts
-            # [seq_len, seq_len, batch_size, n_labels]
-            shortcuts = emit.new_zeros(seq_len, seq_len,
-                                       batch_size, n_labels).log()
+            delta[0] = self._strans + emit[0]  # [B, N]
 
-            # [seq_len, batch_size, n_labels]
-            shortcuts[0, :word_length] = self._strans + emit[0]
-
-            for i in range(1, seq_len):
-                # for all sequences consisting of a subsequence and
-                # a subword starting at 0, 1, ..., i-1 and ending at i, choose
-                # the one with max probs and record split point of its subword
-                delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
-                scores = self._trans + delta[i - 1].unsqueeze(-1)
-                scores, labels[i] = scores.max(dim=1)
-                shortcuts[i, i:i+word_length] = scores + emit[i, :seq_len-i]
-            delta[-1], splits[-1] = shortcuts[:, -1].max(dim=0)
+            for i in range(1, T):
+                scores = self._trans.unsqueeze(0) + delta[i - 1].unsqueeze(-1)
+                scores, paths[i] = torch.max(scores, dim=1)
+                delta[i] = scores + emit[i]
 
             predicts = []
             for i, length in enumerate(lens):
                 # trace the best tag sequence from the end of the sentence
                 # add end transition scores to the total scores before tracing
                 prev = torch.argmax(delta[length - 1, i] + self._etrans)
-                begin, end = splits[length - 1, i, prev], length
 
-                predict, word_lens = [prev], [end - begin]
-                while begin > 0:
-                    # jump to the last split point and continue tracing
-                    prev = labels[begin, i, prev]
+                predict = [prev]
+                for j in reversed(range(1, length)):
+                    prev = paths[j, i, prev]
                     predict.append(prev)
-                    begin, end = splits[begin - 1, i, prev], begin
-                    word_lens.append(end - begin)
-                predict = [Instance.recover(label, word_length)
-                           for label, word_length in zip(predict, word_lens)]
-                predict = [label for pred in reversed(predict)
-                           for label in pred]
-                predicts.append(labels.new_tensor(predict))
+                # flip the predicted sequence before appending it to the list
+                predicts.append(paths.new_tensor(predict).flip(0))
 
         for (inst, pred) in zip(insts, predicts):
             CWS.set_predict_result(inst, pred, self._label_dict)
@@ -277,56 +244,44 @@ class CWS(object):
             for i in range(len(inst)):
                 self._char_dict.add_key_into_counter(inst.chars_s[i])
                 self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
+                self._label_dict.add_key_into_counter(inst.labels_s[i])
                 self._subword_dict.add_key_into_counter(inst.chars_s[i])
                 for subword in inst.subwords_s[i][1:]:
                     if subword in self._subword_pretrained:
                         self._subword_dict.add_key_into_counter(subword)
-                for sublabel in inst.sublabels_s[i]:
-                    self._label_dict.add_key_into_counter(sublabel)
 
     def numericalize_all_instances(self, dataset):
-        # the bos and eos tokens are added to the sequences of each inst here,
-        # acting as representations of the beginning and end of the sentence
         for inst in dataset.all_inst:
             inst.chars_i = torch.tensor([self._char_dict.get_id(i)
-                                         for i in [bos] + inst.chars_s + [eos]])
+                                         for i in inst.chars_s])
             inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
-                                           for i in [bos] + inst.bichars_s + [eos]])
+                                           for i in inst.bichars_s])
             inst.labels_i = torch.tensor([self._label_dict.get_id(i)
                                           for i in inst.labels_s])
             # each position has a list of subword indices
             # if the subword [i, j) does not exist in vocabularies,
             # then numericalize it with unk_index
             inst.subwords_i = torch.zeros(
-                len(inst) + 2, self._conf.max_word_length, dtype=torch.long
-            )
-            inst.sublabels_i = torch.zeros(
                 len(inst), self._conf.max_word_length, dtype=torch.long
             )
             for i in range(len(inst)):
                 word_indices = torch.tensor([
                     self._subword_dict.get_id(j) for j in inst.subwords_s[i]
                 ])
-                label_indices = torch.tensor([
-                    self._label_dict.get_id(j) for j in inst.sublabels_s[i]
-                ])
-                inst.subwords_i[i + 1, :len(word_indices)] = word_indices
-                inst.sublabels_i[i, :len(label_indices)] = label_indices
-            inst.subwords_i[0, 0] = self._subword_dict.bos_index
-            inst.subwords_i[-1, 0] = self._subword_dict.eos_index
+                inst.subwords_i[i, :len(word_indices)] = word_indices
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
         assert os.path.exists(path)
         self._char_dict.load(path + self._char_dict.name,
                              cutoff_freq=self._conf.cutoff_freq,
-                             default_keys=[pad, unk, bos, eos])
+                             default_keys=[pad, unk])
         self._bichar_dict.load(path + self._bichar_dict.name,
                                cutoff_freq=self._conf.cutoff_freq,
-                               default_keys=[pad, unk, bos, eos])
+                               default_keys=[pad, unk])
         self._subword_dict.load(path + self._subword_dict.name,
                                 cutoff_freq=self._conf.cutoff_freq,
-                                default_keys=[pad, unk, bos, eos])
+                                default_keys=[pad, unk])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
 
@@ -387,14 +342,11 @@ class CWS(object):
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         subwords = pad_sequence([inst.subwords_i for inst in insts], True)
-        sublabels = pad_sequence([inst.sublabels_i for inst in insts], True)
-
-        subwords = subwords[:, :, :subwords.size(1)]
-        sublabels = sublabels[:, :, :sublabels.size(1)]
+        labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()
             bichars = bichars.cuda()
             subwords = subwords.cuda()
-            sublabels = sublabels.cuda()
-        return chars, bichars, subwords, sublabels
+            labels = labels.cuda()
+        return chars, bichars, subwords, labels

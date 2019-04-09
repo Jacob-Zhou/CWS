@@ -5,8 +5,7 @@ import os
 import torch
 import torch.nn as nn
 from src.common import pad_index, unk_index
-from torch.nn.utils.rnn import (pack_padded_sequence, pad_packed_sequence,
-                                pad_sequence)
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class CWSModel(nn.Module):
@@ -50,7 +49,7 @@ class CWSModel(nn.Module):
                                   dropout=self._conf.lstm_dropout,
                                   bidirectional=True)
 
-        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden*3,
+        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden,
                              out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         self.reset_parameters()
@@ -81,21 +80,9 @@ class CWSModel(nn.Module):
         x = pack_padded_sequence(x[sorted_indices], sorted_lens, True)
         x, _ = self.lstm_layer(x)
         x, _ = pad_packed_sequence(x, True)
-        x = x[inverse_indices].transpose(0, 1)
+        x = x[inverse_indices]
 
-        x_f, x_b = x.chunk(2, dim=-1)
-        x_sub_f = pad_sequence([x_f[i:i+max_len]
-                                for i in range(1, seq_len - 1)])
-        x_sub_b = pad_sequence([x_b[i:i+max_len]
-                                for i in range(2, seq_len)])
-        x_f = x_f[0:-2].expand_as(x_sub_f)
-        x_b = x_b[1:-1].expand_as(x_sub_b)
-        x_span_f = x_sub_f - x_f
-        x_span_b = x_b - x_sub_b
-        x_span = torch.cat((x_f, x_sub_f, x_span_f,
-                            x_b, x_sub_b, x_span_b), dim=-1).transpose(0, 2)
-
-        x = self.ffn(x_span)
+        x = self.ffn(x)
 
         return x
 
