@@ -211,16 +211,6 @@ class CWS(object):
                 for inst in all_inst:
                     inst.write(out_file)
 
-    ''' 2018.11.3 by Zhenghua
-    I found that using multi-thread for non-viterbi (local) decoding is
-    actually much slower than single-thread
-    (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
-    NOTICE:
-        multi-process: CAN NOT CWS.set_predict_result(inst, head_pred,
-                                                      label_pred, label_dict),
-        this will not change inst of the invoker
-    '''
-
     def decode(self, emit, insts, mask):
         if self.training:
             # only contains subwords with a single character

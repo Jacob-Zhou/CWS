@@ -11,8 +11,8 @@ from .instance import Instance
 class Dataset(object):
 
     def __init__(self, filename,
-                 max_bucket_num=80,
-                 max_word_length=10,
+                 max_bucket_num=72,
+                 max_word_length=5,
                  char_batch_size=500,
                  sent_batch_size=200,
                  inst_num_max=-1,
