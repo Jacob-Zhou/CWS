@@ -174,7 +174,7 @@ class CWS(object):
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
         # ignore all pad and unk tokens in subwords
-        subword_mask = subwords.ne(self._subword_dict.pad_index)
+        subword_mask = subwords.ne(self._subword_dict.pad_index)[:, 1:-1]
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
@@ -298,7 +298,7 @@ class CWS(object):
             # if the subword [i, j) does not exist in vocabularies,
             # then numericalize it with unk_index
             inst.subwords_i = torch.zeros(
-                len(inst), self._conf.max_word_length, dtype=torch.long
+                len(inst) + 2, self._conf.max_word_length, dtype=torch.long
             )
             inst.sublabels_i = torch.zeros(
                 len(inst), self._conf.max_word_length, dtype=torch.long
@@ -310,8 +310,10 @@ class CWS(object):
                 label_indices = torch.tensor([
                     self._label_dict.get_id(j) for j in inst.sublabels_s[i]
                 ])
-                inst.subwords_i[i, :len(word_indices)] = word_indices
+                inst.subwords_i[i + 1, :len(word_indices)] = word_indices
                 inst.sublabels_i[i, :len(label_indices)] = label_indices
+            inst.subwords_i[0, 0] = self._subword_dict.bos_index
+            inst.subwords_i[-1, 0] = self._subword_dict.eos_index
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
@@ -324,7 +326,7 @@ class CWS(object):
                                default_keys=[pad, unk, bos, eos])
         self._subword_dict.load(path + self._subword_dict.name,
                                 cutoff_freq=self._conf.cutoff_freq,
-                                default_keys=[pad, unk])
+                                default_keys=[pad, unk, bos, eos])
         self._label_dict.load(path + self._label_dict.name)
         print("load dict done")
 
