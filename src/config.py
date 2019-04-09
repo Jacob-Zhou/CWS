@@ -5,6 +5,7 @@ from configparser import ConfigParser
 
 
 class Configurable(object):
+
     def __init__(self, config_file, extra_args):
         self.config_file = config_file
         print("read config from " + config_file)
@@ -39,39 +40,6 @@ class Configurable(object):
     @property
     def viterbi_decode(self):
         return self._conf.getint('Run', 'viterbi_decode') != 0
-
-    @property
-    def use_labeled_crf_loss(self):
-        return self._conf.getint('Run', 'use_labeled_crf_loss') != 0
-
-    # only when use labeled-crf-loss
-    # default: arc prob = sum prob of all labels
-    # if setting this to 0, arc prob = max prob among all labels
-    @property
-    def max_label_prob_as_arc_prob_when_decode(self):
-        ret = self._conf.getint(
-            'Run', 'max_label_prob_as_arc_prob_when_decode') != 0
-        if ret:
-            assert self.use_labeled_crf_loss
-        return ret
-
-    @property
-    def use_first_child_score(self):
-        ret = self._conf.getint('Run', 'use_first_child_score') != 0
-        if ret:
-            assert self.use_sib_score
-        return ret
-
-    @property
-    def use_sib_score(self):
-        ret = self._conf.getint('Run', 'use_sib_score') != 0
-        if ret:
-            assert self.use_labeled_crf_loss or self.use_unlabeled_crf_loss
-        return ret
-
-    @property
-    def use_unlabeled_crf_loss(self):
-        return not self.use_labeled_crf_loss and self._conf.getint('Run', 'use_unlabeled_crf_loss') != 0
 
     @property
     def sent_batch_size(self):
@@ -157,24 +125,24 @@ class Configurable(object):
         return self._conf.getint('Train', 'patience')
 
     @property
-    def char_emb_dim(self):
-        return self._conf.getint('Network', 'char_emb_dim')
+    def n_char_emb(self):
+        return self._conf.getint('Network', 'n_char_emb')
 
     @property
-    def subword_emb_dim(self):
-        return self._conf.getint('Network', 'subword_emb_dim')
+    def n_subword_emb(self):
+        return self._conf.getint('Network', 'n_subword_emb')
 
     @property
     def emb_dropout(self):
         return self._conf.getfloat('Network', 'emb_dropout')
 
     @property
-    def lstm_hidden_dim(self):
-        return self._conf.getint('Network', 'lstm_hidden_dim')
+    def n_lstm_hidden(self):
+        return self._conf.getint('Network', 'n_lstm_hidden')
 
     @property
-    def num_lstm_layers(self):
-        return self._conf.getint('Network', 'num_lstm_layers')
+    def n_lstm_layers(self):
+        return self._conf.getint('Network', 'n_lstm_layers')
 
     @property
     def lstm_dropout(self):
