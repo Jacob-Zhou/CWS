@@ -34,21 +34,23 @@ class CWSModel(nn.Module):
     # create and init all the models needed according to config
     def init_models(self, char_dict, bichar_dict, subword_dict, label_dict):
         self.emb_char = nn.Embedding(num_embeddings=len(char_dict),
-                                     embedding_dim=self._conf.char_emb_dim)
+                                     embedding_dim=self._conf.n_char_emb)
         self.emb_bichar = nn.Embedding(num_embeddings=len(bichar_dict),
-                                       embedding_dim=self._conf.char_emb_dim)
+                                       embedding_dim=self._conf.n_char_emb)
         self.emb_subword = nn.Embedding(num_embeddings=subword_dict.init_num,
-                                        embedding_dim=self._conf.subword_emb_dim)
-        # if subword_dict.embed is not None:
-        #     self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
+                                        embedding_dim=self._conf.n_subword_emb)
+        if subword_dict.embed is not None:
+            self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
         self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
 
-        self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
-                                  hidden_size=self._conf.lstm_hidden_dim//2,
+        self.lstm_layer = nn.LSTM(input_size=self._conf.n_char_emb*3,
+                                  hidden_size=self._conf.n_lstm_hidden//2,
+                                  num_layers=self._conf.n_lstm_layers,
                                   batch_first=True,
+                                  dropout=self._conf.lstm_dropout,
                                   bidirectional=True)
 
-        self.ffn = nn.Linear(in_features=self._conf.lstm_hidden_dim + self._conf.subword_emb_dim,
+        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden*3,
                              out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         self.reset_parameters()
@@ -66,12 +68,13 @@ class CWSModel(nn.Module):
 
         emb_ch = self.emb_char(chars)
         emb_bich = self.emb_bichar(bichars)
-        # emb_sub = self.pretrained(subwords)
-        # # set indices larger than num_embeddings to unk_index, that is,
-        # # make all subwords not in emb_subword but in pretrained to unk
-        # emb_sub += self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
-        emb_sub = self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
-        x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich), -1))
+        emb_sub = self.pretrained(subwords)
+        # set indices larger than num_embeddings to unk_index, that is,
+        # make all subwords not in emb_subword but in pretrained to unk
+        emb_sub += self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
+        emb_sub = emb_sub.masked_fill_(subwords.eq(pad_index).unsqueeze(-1), 0)
+        emb_sub = emb_sub.mean(dim=-2)
+        x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich, emb_sub), -1))
 
         sorted_lens, sorted_indices = torch.sort(lens, descending=True)
         inverse_indices = sorted_indices.argsort()
@@ -82,17 +85,17 @@ class CWSModel(nn.Module):
 
         x_f, x_b = x.chunk(2, dim=-1)
         x_sub_f = pad_sequence([x_f[i:i+max_len]
-                                for i in range(1, seq_len + 1)])
+                                for i in range(1, seq_len - 1)])
         x_sub_b = pad_sequence([x_b[i:i+max_len]
-                                for i in range(2, seq_len + 2)])
+                                for i in range(2, seq_len)])
         x_f = x_f[0:-2].expand_as(x_sub_f)
         x_b = x_b[1:-1].expand_as(x_sub_b)
         x_span_f = x_sub_f - x_f
         x_span_b = x_b - x_sub_b
-        x_span = torch.cat([x_span_f, x_span_b], dim=-1).transpose(0, 2)
+        x_span = torch.cat((x_f, x_sub_f, x_span_f,
+                            x_b, x_sub_b, x_span_b), dim=-1).transpose(0, 2)
 
-        x = torch.cat([x_span, emb_sub], dim=-1)
-        x = self.ffn(x)
+        x = self.ffn(x_span)
 
         return x
 
