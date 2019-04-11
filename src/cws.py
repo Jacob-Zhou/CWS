@@ -93,12 +93,11 @@ class CWS(object):
                 self._test_datasets:
             self.numericalize_all_instances(dataset)
 
-        if self._conf.is_train:
-            self._model.init_models(self._char_dict,
-                                    self._bichar_dict,
-                                    self._subword_dict,
-                                    self._label_dict)
-        else:
+        self._model.init_models(self._char_dict,
+                                self._bichar_dict,
+                                self._subword_dict,
+                                self._label_dict)
+        if not self._conf.is_train:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
         print(self._model)
@@ -174,7 +173,9 @@ class CWS(object):
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
         # ignore all pad and unk tokens in subwords
-        subword_mask = subwords.ne(self._subword_dict.pad_index)[:, 1:-1]
+        subword_mask = subwords.ne(self._subword_dict.pad_index)
+        subword_mask &= subwords.ne(self._subword_dict.eos_index)
+        subword_mask = subword_mask[:, 1:-1]
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
