@@ -169,7 +169,7 @@ class CWS(object):
         # shape of the following tensors:
         # chars: [batch_size, seq_len + 2]
         # bichars: [batch_size, seq_len + 2]
-        # subwords: [batch_size, seq_len, word_length]
+        # subwords: [batch_size, seq_len + 2, word_length]
         # sublabels: [batch_size, seq_len, word_length]
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
