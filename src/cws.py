@@ -179,12 +179,12 @@ class CWS(object):
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
 
-        label_loss = self._model.get_loss(out, sublabels, subword_mask)
-        self._metric.loss_accumulated += label_loss.item()
+        loss = self._model.get_loss(out, sublabels, subword_mask)
+        self._metric.loss_accumulated += loss.item()
         time3 = time.time()
 
         if self.training:
-            label_loss.backward()
+            loss.backward()
             nn.utils.clip_grad_norm_(self._model.parameters(),
                                      max_norm=self._conf.clip)
             self._optimizer.step()
