@@ -93,9 +93,10 @@ class CWSModel(nn.Module):
         x_span_f = x_sub_f - x_f
         x_span_b = x_b - x_sub_b
         x_span = torch.cat((x_f, x_sub_f, x_span_f,
-                            x_b, x_sub_b, x_span_b), dim=-1).transpose(0, 2)
+                            x_b, x_sub_b, x_span_b), dim=-1)
+        x = x_span.transpose(0, 2)
 
-        x = self.ffn(x_span)
+        x = self.ffn(x)
 
         return x
 
