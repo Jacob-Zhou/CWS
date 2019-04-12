@@ -256,13 +256,13 @@ class CWS(object):
                 prev = torch.argmax(delta[length - 1, i] + self._etrans)
                 begin, end = splits[length - 1, i, prev], length
 
-                predict, word_lens = [prev], [end - begin]
+                predict, word_lens = [prev], [int(end - begin)]
                 while begin > 0:
                     # jump to the last split point and continue tracing
                     prev = labels[begin, i, prev]
                     predict.append(prev)
                     begin, end = splits[begin - 1, i, prev], begin
-                    word_lens.append(end - begin)
+                    word_lens.append(int(end - begin))
                 predict = [Instance.recover(label, word_length)
                            for label, word_length in zip(predict, word_lens)]
                 predict = [label for pred in reversed(predict)

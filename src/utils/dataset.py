@@ -51,6 +51,7 @@ class Dataset(object):
         self._bucket_num = -1
         self._use_bucket = (max_bucket_num > 1)
         self._buckets = None  # [(max_len, inst_num_one_batch, bucket)]
+        self._bucket_index = 0
         self._bucket_sent_index = 0
         self._shuffle = shuffle
 
@@ -117,24 +118,24 @@ class Dataset(object):
         return self._buckets
 
     def get_one_batch_bucket(self):
-        if self._bucket_sent_index >= self._bucket_num:
-            self._bucket_sent_index = 0
+        if self._bucket_index >= self._bucket_num:
+            self._bucket_index = 0
             if self._shuffle:
                 for (max_len, inst_num, bucket) in self._buckets:
                     random.shuffle(bucket)
                 random.shuffle(self._buckets)
             raise StopIteration
 
-        max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_sent_index]
-        assert self._sent_index < len(this_bucket)
-        idx_next_batch = self._sent_index + inst_num_one_batch
-        one_batch = this_bucket[self._sent_index:idx_next_batch]
+        max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_index]
+        assert self._bucket_sent_index < len(this_bucket)
+        idx_next_batch = self._bucket_sent_index + inst_num_one_batch
+        one_batch = this_bucket[self._bucket_sent_index:idx_next_batch]
         assert len(one_batch) > 0
         if idx_next_batch >= len(this_bucket):
-            self._bucket_sent_index += 1
-            self._sent_index = 0
+            self._bucket_index += 1
+            self._bucket_sent_index = 0
         else:
-            self._sent_index = idx_next_batch
+            self._bucket_sent_index = idx_next_batch
 
         return one_batch
 
