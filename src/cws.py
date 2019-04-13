@@ -144,8 +144,6 @@ class CWS(object):
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.save_model_after_eval_num:
-                    if best_eval_cnt > self._conf.save_model_after_eval_num:
-                        self.del_model(self._conf.model_dir, best_eval_cnt)
                     self._model.save_model(self._conf.model_dir,
                                            eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
@@ -263,6 +261,7 @@ class CWS(object):
                     predict.append(prev)
                     begin, end = splits[begin - 1, i, prev], begin
                     word_lens.append(int(end - begin))
+                insts[i].word_lens = word_lens
                 predict = [Instance.recover(label, word_length)
                            for label, word_length in zip(predict, word_lens)]
                 predict = [label for pred in reversed(predict)
@@ -390,8 +389,6 @@ class CWS(object):
         subwords = pad_sequence([inst.subwords_i for inst in insts], True)
         sublabels = pad_sequence([inst.sublabels_i for inst in insts], True)
 
-        subwords = subwords[:, :, :subwords.size(1)]
-        sublabels = sublabels[:, :, :sublabels.size(1)]
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time
+from collections import Counter
 
 
 class Metric(object):
@@ -42,7 +43,7 @@ class Metric(object):
 
     def compute_and_output(self, dataset, eval_cnt):
         self.time_gap = float(time.time() - self.start_time)
-        print("\n%30s(%5d): loss=%.3f " %
+        print("\n%30s(%d): loss=%.3f " %
               (dataset.filename_short, eval_cnt, self.loss_accumulated), end='')
         if self.gold_num > 0:
             print("precision=%.3f, recall=%.3f, fscore=%.3f, " %
@@ -52,3 +53,5 @@ class Metric(object):
               (self.sent_num, self.time_gap, self.forward_time, self.loss_time,
                self.backward_time, self.decode_time,
                time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time()))))
+        if self.gold_num > 0:
+            print(Counter(i for inst in dataset.all_inst for i in inst.word_lens))
