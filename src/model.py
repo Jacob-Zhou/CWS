@@ -83,19 +83,17 @@ class CWSModel(nn.Module):
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices].transpose(0, 1)
 
-        x_f, x_b = x.chunk(2, dim=-1)
-        x_sub_f = pad_sequence([x_f[i:i+max_len]
-                                for i in range(1, seq_len - 1)])
-        x_sub_b = pad_sequence([x_b[i:i+max_len]
-                                for i in range(2, seq_len)])
-        x_f = x_f[0:-2]
-        x_b = x_b[1:-1]
-        x_span_f = x_sub_f - x_f
-        x_span_b = x_b - x_sub_b
-        x_span = torch.cat((x_f.expand_as(x_sub_f), x_sub_f, x_span_f,
-                            x_b.expand_as(x_sub_b), x_sub_b, x_span_b), dim=-1)
-        x = x_span.transpose(0, 2)
+        f_x, b_x = x.chunk(2, dim=-1)
+        f_sub = pad_sequence([f_x[i:i+max_len] for i in range(1, seq_len - 1)])
+        b_sub = pad_sequence([b_x[i:i+max_len] for i in range(2, seq_len)])
 
+        f_x = f_x[0:-2].expand_as(f_sub)
+        b_x = b_x[1:-1].expand_as(b_sub)
+        f_span = f_sub - f_x
+        b_span = b_x - b_sub
+
+        x = torch.cat((f_x, f_sub, f_span, b_x, b_sub, b_span), dim=-1)
+        x = x.transpose(0, 2)
         x = self.ffn(x)
 
         return x
