@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import shutil
 import time
 
@@ -172,8 +173,10 @@ class CWS(object):
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
         # ignore all pad and unk tokens in subwords
         subword_mask = subwords.ne(self._subword_dict.pad_index)
+        subword_mask &= subwords.ne(self._subword_dict.unk_index)
         subword_mask &= subwords.ne(self._subword_dict.eos_index)
         subword_mask = subword_mask[:, 1:-1]
+
         time1 = time.time()
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
@@ -216,9 +219,9 @@ class CWS(object):
             emit = emit.argmax(-1)[:, :, 0]
             predicts = [emit[i][:len(inst)] for i, inst in enumerate(insts)]
         else:
-            # # fill the padded part with -inf
-            # emit = emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
-            # # emit = F.log_softmax(emit, dim=-1)
+            emit = emit.log_softmax(dim=-1)
+            emit[:, :, 1:].masked_fill_(~mask[:, :, 1:].unsqueeze(-1),
+                                        float('-inf'))
             emit = emit.permute(1, 2, 0, 3)
             seq_len, word_length, batch_size, n_labels = emit.shape
             lens = [len(i) for i in insts]
@@ -275,14 +278,14 @@ class CWS(object):
     def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
             for i in range(len(inst)):
-                self._char_dict.add_key_into_counter(inst.chars_s[i])
-                self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
-                self._subword_dict.add_key_into_counter(inst.chars_s[i])
+                self._char_dict.count(inst.chars_s[i])
+                self._bichar_dict.count(inst.bichars_s[i])
+                self._subword_dict.count(re.sub(r'\d', '0', inst.chars_s[i]))
                 for subword in inst.subwords_s[i][1:]:
                     if subword in self._subword_pretrained:
-                        self._subword_dict.add_key_into_counter(subword)
+                        self._subword_dict.count(re.sub(r'\d', '0', subword))
                 for sublabel in inst.sublabels_s[i]:
-                    self._label_dict.add_key_into_counter(sublabel)
+                    self._label_dict.count(sublabel)
 
     def numericalize_all_instances(self, dataset):
         # the bos and eos tokens are added to the sequences of each inst here,
@@ -297,18 +300,18 @@ class CWS(object):
             # each position has a list of subword indices
             # if the subword [i, j) does not exist in vocabularies,
             # then numericalize it with unk_index
-            inst.subwords_i = torch.zeros(
-                len(inst) + 2, self._conf.max_word_length, dtype=torch.long
-            )
-            inst.sublabels_i = torch.zeros(
-                len(inst), self._conf.max_word_length, dtype=torch.long
-            )
+            inst.subwords_i = torch.zeros(len(inst) + 2,
+                                          self._conf.max_word_length).long()
+            inst.sublabels_i = torch.zeros(len(inst),
+                                           self._conf.max_word_length).long()
             for i in range(len(inst)):
                 word_indices = torch.tensor([
-                    self._subword_dict.get_id(j) for j in inst.subwords_s[i]
+                    self._subword_dict.get_id(re.sub(r'\d', '0', j))
+                    for j in inst.subwords_s[i]
                 ])
                 label_indices = torch.tensor([
-                    self._label_dict.get_id(j) for j in inst.sublabels_s[i]
+                    self._label_dict.get_id(j)
+                    for j in inst.sublabels_s[i]
                 ])
                 inst.subwords_i[i + 1, :len(word_indices)] = word_indices
                 inst.sublabels_i[i, :len(label_indices)] = label_indices

@@ -65,7 +65,7 @@ class VocabDict(object):
     def embed(self):
         return self._embed
 
-    def add_key_into_counter(self, k):
+    def count(self, k):
         self._counter[k] += 1
 
     def get_id(self, key):
