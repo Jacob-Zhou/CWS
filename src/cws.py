@@ -392,6 +392,11 @@ class CWS(object):
         subwords = pad_sequence([inst.subwords_i for inst in insts], True)
         sublabels = pad_sequence([inst.sublabels_i for inst in insts], True)
 
+        max_len = min(self._conf.max_word_length, chars.size(-1))
+        if self._conf.max_word_length > max_len:
+            subwords = subwords[..., :max_len]
+            sublabels = sublabels[..., :max_len]
+
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()
