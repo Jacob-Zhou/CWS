@@ -89,11 +89,10 @@ class CWS(object):
                 self._test_datasets:
             self.numericalize_all_instances(dataset)
 
-        if self._conf.is_train:
-            self._model.init_models(self._char_dict,
-                                    self._bichar_dict,
-                                    self._label_dict)
-        else:
+        self._model.init_models(self._char_dict,
+                                self._bichar_dict,
+                                self._label_dict)
+        if not self._conf.is_train:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
         print(self._model)
@@ -140,8 +139,6 @@ class CWS(object):
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.save_model_after_eval_num:
-                    if best_eval_cnt > self._conf.save_model_after_eval_num:
-                        self.del_model(self._conf.model_dir, best_eval_cnt)
                     self._model.save_model(self._conf.model_dir,
                                            eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
@@ -157,7 +154,7 @@ class CWS(object):
                 break
         print("The training ended at epoch %d" % eval_cnt)
         print("The best fscore of dev is %.3f at epoch %d" %
-              (best_accuracy, eval_cnt))
+              (best_accuracy, best_eval_cnt))
 
     def train_or_eval_one_batch(self, insts):
         print('.', end='')
@@ -167,12 +164,12 @@ class CWS(object):
         out = self._model(chars, bichars)
         time2 = time.time()
 
-        label_loss = self._model.get_loss(out, labels, mask)
-        self._metric.loss_accumulated += label_loss.item()
+        loss = self._model.get_loss(out, labels, mask)
+        self._metric.loss_accumulated += loss.item()
         time3 = time.time()
 
         if self.training:
-            label_loss.backward()
+            loss.backward()
             nn.utils.clip_grad_norm_(self._model.parameters(),
                                      max_norm=self._conf.clip)
             self._optimizer.step()
@@ -199,22 +196,11 @@ class CWS(object):
                 for inst in all_inst:
                     inst.write(out_file)
 
-    ''' 2018.11.3 by Zhenghua
-    I found that using multi-thread for non-viterbi (local) decoding is
-    actually much slower than single-thread
-    (ptb labeled-crf-loss train 1-iter: 150s vs. 5s)
-    NOTICE:
-        multi-process: CAN NOT CWS.set_predict_result(inst, head_pred,
-                                                      label_pred, label_dict),
-        this will not change inst of the invoker
-    '''
-
     def decode(self, emit, insts, mask):
+        lens = [len(i) for i in insts]
         if self.training:
-            lengths = [len(i) for i in insts]
-            predicts = torch.split(emit.argmax(-1)[mask], lengths)
+            predicts = torch.split(emit.argmax(-1)[mask], lens)
         else:
-            lens = [len(i) for i in insts]
             emit = emit.transpose(0, 1).log_softmax(dim=-1)
             T, B, N = emit.shape
 
