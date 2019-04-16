@@ -96,16 +96,6 @@ class Configurable(object):
         return self._conf.get('Train', 'test_files')
 
     @property
-    def emb_char_file(self):
-        file = self._conf.get('Train', 'emb_char_file')
-        return file if os.path.exists(file) else None
-
-    @property
-    def emb_bichar_file(self):
-        file = self._conf.get('Train', 'emb_bichar_file')
-        return file if os.path.exists(file) else None
-
-    @property
     def emb_subword_file(self):
         file = self._conf.get('Train', 'emb_subword_file')
         return file if os.path.exists(file) else None
