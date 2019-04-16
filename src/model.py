@@ -21,7 +21,7 @@ class CWSModel(nn.Module):
         self.emb_bichar = None
         self.emb_subword = None
         self.pretrained = None
-        self.emb_drop_layer = None
+        self.emb_dropout = None
         self.lstm_layer = None
         self.ffn = None
         self.criterion = None
@@ -38,9 +38,8 @@ class CWSModel(nn.Module):
                                        embedding_dim=self._conf.n_char_emb)
         self.emb_subword = nn.Embedding(num_embeddings=subword_dict.init_num,
                                         embedding_dim=self._conf.n_subword_emb)
-        if subword_dict.embed is not None:
-            self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
-        self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
+        self.pretrained = nn.Embedding.from_pretrained(subword_dict.embed)
+        self.emb_dropout = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.n_char_emb*3,
                                   hidden_size=self._conf.n_lstm_hidden//2,
@@ -56,8 +55,7 @@ class CWSModel(nn.Module):
         print('init models done')
 
     def reset_parameters(self):
-        if self.pretrained is not None:
-            nn.init.zeros_(self.emb_subword.weight)
+        nn.init.zeros_(self.emb_subword.weight)
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
@@ -73,7 +71,7 @@ class CWSModel(nn.Module):
         emb_sub += self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
         emb_sub = emb_sub.masked_fill_(subwords.eq(pad_index).unsqueeze(-1), 0)
         emb_sub = emb_sub.mean(dim=-2)
-        x = self.emb_drop_layer(torch.cat((emb_ch, emb_bich, emb_sub), -1))
+        x = self.emb_dropout(torch.cat((emb_ch, emb_bich, emb_sub), -1))
 
         sorted_lens, sorted_indices = torch.sort(lens, descending=True)
         inverse_indices = sorted_indices.argsort()

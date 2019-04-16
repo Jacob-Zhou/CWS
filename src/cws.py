@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import shutil
 import time
 
@@ -92,12 +93,11 @@ class CWS(object):
                 self._test_datasets:
             self.numericalize_all_instances(dataset)
 
-        if self._conf.is_train:
-            self._model.init_models(self._char_dict,
-                                    self._bichar_dict,
-                                    self._subword_dict,
-                                    self._label_dict)
-        else:
+        self._model.init_models(self._char_dict,
+                                self._bichar_dict,
+                                self._subword_dict,
+                                self._label_dict)
+        if not self._conf.is_train:
             self._model.load_model(self._conf.model_dir,
                                    self._conf.model_eval_num)
         print(self._model)
@@ -144,8 +144,6 @@ class CWS(object):
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.save_model_after_eval_num:
-                    if best_eval_cnt > self._conf.save_model_after_eval_num:
-                        self.del_model(self._conf.model_dir, best_eval_cnt)
                     self._model.save_model(self._conf.model_dir,
                                            eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
@@ -171,12 +169,12 @@ class CWS(object):
         out = self._model(chars, bichars, subwords)
         time2 = time.time()
 
-        label_loss = self._model.get_loss(out, labels, mask)
-        self._metric.loss_accumulated += label_loss.item()
+        loss = self._model.get_loss(out, labels, mask)
+        self._metric.loss_accumulated += loss.item()
         time3 = time.time()
 
         if self.training:
-            label_loss.backward()
+            loss.backward()
             nn.utils.clip_grad_norm_(self._model.parameters(),
                                      max_norm=self._conf.clip)
             self._optimizer.step()
@@ -204,11 +202,10 @@ class CWS(object):
                     inst.write(out_file)
 
     def decode(self, emit, insts, mask):
+        lens = [len(i) for i in insts]
         if self.training:
-            lengths = [len(i) for i in insts]
-            predicts = torch.split(emit.argmax(-1)[mask], lengths)
+            predicts = torch.split(emit.argmax(-1)[mask], lens)
         else:
-            lens = [len(i) for i in insts]
             emit = emit.transpose(0, 1).log_softmax(dim=-1)
             T, B, N = emit.shape
 
@@ -242,13 +239,13 @@ class CWS(object):
     def create_dictionaries(self, dataset):
         for inst in dataset.all_inst:
             for i in range(len(inst)):
-                self._char_dict.add_key_into_counter(inst.chars_s[i])
-                self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
-                self._label_dict.add_key_into_counter(inst.labels_s[i])
-                self._subword_dict.add_key_into_counter(inst.chars_s[i])
+                self._char_dict.count(inst.chars_s[i])
+                self._bichar_dict.count(inst.bichars_s[i])
+                self._label_dict.count(inst.labels_s[i])
+                self._subword_dict.count(re.sub(r'\d', '0', inst.chars_s[i]))
                 for subword in inst.subwords_s[i][1:]:
                     if subword in self._subword_pretrained:
-                        self._subword_dict.add_key_into_counter(subword)
+                        self._subword_dict.count(re.sub(r'\d', '0', subword))
 
     def numericalize_all_instances(self, dataset):
         for inst in dataset.all_inst:
@@ -266,7 +263,8 @@ class CWS(object):
             )
             for i in range(len(inst)):
                 word_indices = torch.tensor([
-                    self._subword_dict.get_id(j) for j in inst.subwords_s[i]
+                    self._subword_dict.get_id(re.sub(r'\d', '0', j))
+                    for j in inst.subwords_s[i]
                 ])
                 inst.subwords_i[i, :len(word_indices)] = word_indices
 
@@ -343,6 +341,7 @@ class CWS(object):
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         subwords = pad_sequence([inst.subwords_i for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
+
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()

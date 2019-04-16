@@ -12,7 +12,7 @@ class Dataset(object):
 
     def __init__(self, filename,
                  max_bucket_num=72,
-                 max_word_length=5,
+                 max_word_length=4,
                  char_batch_size=500,
                  sent_batch_size=200,
                  inst_num_max=-1,
