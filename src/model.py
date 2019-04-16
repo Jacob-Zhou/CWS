@@ -59,19 +59,23 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
+        subword_mask = subwords.ne(pad_index) & subwords.ne(unk_index)
+        # set indices larger than num_embeddings to unk_index, that is,
+        # make all subwords not in emb_subword but in pretrained to unk
         ext_mask = subwords.ge(self.emb_subword.num_embeddings)
+        ext_subwords = subwords.masked_fill(ext_mask, unk_index)
+
         batch_size, seq_len, max_len = subwords.shape
         lens = mask.sum(1)
 
-        emb_ch = self.emb_char(chars)
-        emb_bich = self.emb_bichar(bichars)
-        emb_sub = self.pretrained(subwords)
-        # set indices larger than num_embeddings to unk_index, that is,
-        # make all subwords not in emb_subword but in pretrained to unk
-        emb_sub += self.emb_subword(subwords.masked_fill_(ext_mask, unk_index))
-        emb_sub = emb_sub.masked_fill_(subwords.eq(pad_index).unsqueeze(-1), 0)
-        emb_sub = emb_sub.mean(dim=-2)
-        x = self.emb_dropout(torch.cat((emb_ch, emb_bich, emb_sub), -1))
+        emb_char = self.emb_char(chars)
+        emb_bichar = self.emb_bichar(bichars)
+        emb_subword = self.pretrained(subwords)
+        emb_subword += self.emb_subword(ext_subwords)
+        emb_subword = emb_subword.masked_fill_(~subword_mask.unsqueeze(-1), 0)
+        emb_subword = emb_subword.mean(dim=-2)
+        emb = torch.cat((emb_char, emb_bichar, emb_subword), dim=-1)
+        x = self.emb_dropout(emb)
 
         sorted_lens, sorted_indices = torch.sort(lens, descending=True)
         inverse_indices = sorted_indices.argsort()
