@@ -398,7 +398,7 @@ class CWS(object):
             sublabels = sublabels[..., :max_len]
 
         # MUST assign for Tensor.cuda() unlike nn.Module
-        if torch.cuda.is_available():
+        if self._use_cuda:
             chars = chars.cuda()
             bichars = bichars.cuda()
             subwords = subwords.cuda()
