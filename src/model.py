@@ -19,7 +19,7 @@ class CWSModel(nn.Module):
 
         self.emb_char = None
         self.emb_bichar = None
-        self.emb_drop_layer = None
+        self.emb_dropout = None
         self.lstm_layer = None
         self.ffn = None
         self.criterion = None
@@ -34,7 +34,7 @@ class CWSModel(nn.Module):
                                      embedding_dim=self._conf.char_emb_dim)
         self.emb_bichar = nn.Embedding(num_embeddings=len(bichar_dict),
                                        embedding_dim=self._conf.char_emb_dim)
-        self.emb_drop_layer = nn.Dropout(self._conf.emb_dropout)
+        self.emb_dropout = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
                                   hidden_size=self._conf.lstm_hidden_dim//2,
@@ -50,13 +50,13 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars):
         mask = chars.ne(pad_index)
-        sen_lens = mask.sum(1)
+        seq_lens = mask.sum(1)
 
-        emb_ch = self.emb_char(chars)
+        emb_char = self.emb_char(chars)
         emb_bichar = self.emb_bichar(bichars)
-        x = self.emb_drop_layer(torch.cat((emb_ch, emb_bichar), -1))
+        x = self.emb_dropout(torch.cat((emb_char, emb_bichar), -1))
 
-        sorted_lens, sorted_indices = torch.sort(sen_lens, descending=True)
+        sorted_lens, sorted_indices = torch.sort(seq_lens, descending=True)
         inverse_indices = sorted_indices.argsort()
         x = pack_padded_sequence(x[sorted_indices], sorted_lens, True)
         x, _ = self.lstm_layer(x)

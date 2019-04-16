@@ -36,7 +36,6 @@ class CWS(object):
         self._train_datasets = []
         self._dev_datasets = []
         self._test_datasets = []
-        self._char_pretrained = None
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
@@ -82,8 +81,6 @@ class CWS(object):
                            self._test_datasets,
                            inst_num_max=self._conf.inst_num_max)
 
-        if self._char_pretrained is not None:
-            self._char_dict.read_embeddings(self._char_pretrained)
         print('numericalizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + \
                 self._test_datasets:
