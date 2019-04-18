@@ -251,11 +251,11 @@ class CWS(object):
             delta[-1], splits[-1] = shortcuts[:, -1].max(dim=0)
 
             predicts = []
-            for i, length in enumerate(lens):
+            for i, seq_len in enumerate(lens):
                 # trace the best tag sequence from the end of the sentence
                 # add end transition scores to the total scores before tracing
-                prev = torch.argmax(delta[length - 1, i] + self._etrans)
-                begin, end = splits[length - 1, i, prev], length
+                prev = torch.argmax(delta[seq_len - 1, i] + self._etrans)
+                begin, end = splits[seq_len - 1, i, prev], seq_len
 
                 predict, word_lens = [prev], [int(end - begin)]
                 while begin > 0:
@@ -265,8 +265,8 @@ class CWS(object):
                     begin, end = splits[begin - 1, i, prev], begin
                     word_lens.append(int(end - begin))
                 insts[i].word_lens = word_lens
-                predict = [Instance.recover(label, word_length)
-                           for label, word_length in zip(predict, word_lens)]
+                predict = [Instance.recover(label, length)
+                           for label, length in zip(predict, word_lens)]
                 predict = [label for pred in reversed(predict)
                            for label in pred]
                 predicts.append(labels.new_tensor(predict))
