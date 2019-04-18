@@ -175,6 +175,7 @@ class CWS(object):
         subword_mask = subwords.ne(self._subword_dict.pad_index)
         subword_mask &= subwords.ne(self._subword_dict.unk_index)
         subword_mask &= subwords.ne(self._subword_dict.eos_index)
+        subword_mask[..., 0] = 1
         subword_mask = subword_mask[:, 1:-1]
 
         time1 = time.time()
@@ -216,12 +217,11 @@ class CWS(object):
     def decode(self, emit, insts, mask):
         if self.training:
             # only contains subwords with a single character
-            emit = emit.argmax(-1)[:, :, 0]
+            emit = emit.argmax(-1)[..., 0]
             predicts = [emit[i][:len(inst)] for i, inst in enumerate(insts)]
         else:
             emit = emit.log_softmax(dim=-1)
-            emit[:, :, 1:].masked_fill_(~mask[:, :, 1:].unsqueeze(-1),
-                                        float('-inf'))
+            emit.masked_fill_(~mask.unsqueeze(-1), float('-inf'))
             emit = emit.permute(1, 2, 0, 3)
             seq_len, word_length, batch_size, n_labels = emit.shape
             lens = [len(i) for i in insts]
@@ -280,8 +280,7 @@ class CWS(object):
             for i in range(len(inst)):
                 self._char_dict.count(inst.chars_s[i])
                 self._bichar_dict.count(inst.bichars_s[i])
-                self._subword_dict.count(re.sub(r'\d', '0', inst.chars_s[i]))
-                for subword in inst.subwords_s[i][1:]:
+                for subword in inst.subwords_s[i]:
                     if subword in self._subword_pretrained:
                         self._subword_dict.count(re.sub(r'\d', '0', subword))
                 for sublabel in inst.sublabels_s[i]:

@@ -85,17 +85,18 @@ class CWSModel(nn.Module):
         x = x[inverse_indices].transpose(0, 1)
 
         f_x, b_x = x.chunk(2, dim=-1)
+        h_sub = pad_sequence([x[i:i+max_len] for i in range(1, seq_len - 1)])
         f_sub = pad_sequence([f_x[i:i+max_len] for i in range(1, seq_len - 1)])
         b_sub = pad_sequence([b_x[i:i+max_len] for i in range(2, seq_len)])
 
-        f_x = f_x[0:-2].expand_as(f_sub)
-        b_x = b_x[1:-1].expand_as(b_sub)
-        f_span = f_sub - f_x
-        b_span = b_x - b_sub
+        h_x = x[1:-1].expand_as(h_sub)
+        f_span = f_sub - f_x[0:-2]
+        b_span = b_x[1:-1] - b_sub
 
-        x = torch.cat((f_x, f_sub, f_span, b_x, b_sub, b_span), dim=-1)
+        x = torch.cat((h_x, h_sub, f_span, b_span), dim=-1)
         x = x.transpose(0, 2)
         x = self.ffn(x)
+        x[..., 0, -1] = float('-inf')
 
         return x
 
