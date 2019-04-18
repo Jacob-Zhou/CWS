@@ -242,8 +242,7 @@ class CWS(object):
                 self._char_dict.count(inst.chars_s[i])
                 self._bichar_dict.count(inst.bichars_s[i])
                 self._label_dict.count(inst.labels_s[i])
-                self._subword_dict.count(re.sub(r'\d', '0', inst.chars_s[i]))
-                for subword in inst.subwords_s[i][1:]:
+                for subword in inst.subwords_s[i]:
                     if subword in self._subword_pretrained:
                         self._subword_dict.count(re.sub(r'\d', '0', subword))
 
@@ -343,7 +342,7 @@ class CWS(object):
         labels = pad_sequence([inst.labels_i for inst in insts], True)
 
         # MUST assign for Tensor.cuda() unlike nn.Module
-        if torch.cuda.is_available():
+        if self._use_cuda:
             chars = chars.cuda()
             bichars = bichars.cuda()
             subwords = subwords.cuda()
