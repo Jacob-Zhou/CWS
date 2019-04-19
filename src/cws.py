@@ -58,7 +58,7 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
-        self._model = CWSModel('ws', conf, self._use_cuda)
+        self._model = CWSModel('ws', conf)
 
     def run(self):
         self._subword_pretrained = Embedding.load(self._conf.emb_subword_file)
@@ -164,11 +164,6 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts):
         print('.', end='')
-        # shape of the following tensors:
-        # chars: [batch_size, seq_len + 2]
-        # bichars: [batch_size, seq_len + 2]
-        # subwords: [batch_size, seq_len + 2, word_length]
-        # sublabels: [batch_size, seq_len, word_length]
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
         # ignore all pad and unk tokens in subwords
