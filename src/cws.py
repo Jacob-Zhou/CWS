@@ -57,7 +57,7 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
-        self._model = CWSModel('ws', conf, self._use_cuda)
+        self._model = CWSModel('ws', conf)
 
     def run(self):
         self._subword_pretrained = Embedding.load(self._conf.emb_subword_file)

@@ -10,11 +10,10 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 class CWSModel(nn.Module):
 
-    def __init__(self, name, conf, use_cuda):
+    def __init__(self, name, conf):
         super(CWSModel, self).__init__()
 
         self._conf = conf
-        self._use_cuda = use_cuda
         self._name = name
 
         self.emb_char = None
@@ -42,13 +41,13 @@ class CWSModel(nn.Module):
         self.emb_dropout = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.n_char_emb*3,
-                                  hidden_size=self._conf.n_lstm_hidden//2,
+                                  hidden_size=self._conf.n_lstm_hidden,
                                   num_layers=self._conf.n_lstm_layers,
                                   batch_first=True,
                                   dropout=self._conf.lstm_dropout,
                                   bidirectional=True)
 
-        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden,
+        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden*2,
                              out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         self.reset_parameters()

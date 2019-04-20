@@ -31,7 +31,7 @@ patience = 10
 n_char_emb = 50
 n_subword_emb = 50
 emb_dropout = 0.5
-n_lstm_hidden = 300
+n_lstm_hidden = 150
 n_lstm_layers = 2
 lstm_dropout = 0.2
 
