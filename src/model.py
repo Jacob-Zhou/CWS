@@ -42,13 +42,13 @@ class CWSModel(nn.Module):
         self.emb_dropout = nn.Dropout(self._conf.emb_dropout)
 
         self.lstm_layer = nn.LSTM(input_size=self._conf.n_char_emb*3,
-                                  hidden_size=self._conf.n_lstm_hidden//2,
+                                  hidden_size=self._conf.n_lstm_hidden,
                                   num_layers=self._conf.n_lstm_layers,
                                   batch_first=True,
                                   dropout=self._conf.lstm_dropout,
                                   bidirectional=True)
 
-        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden*3,
+        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden*6,
                              out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         self.reset_parameters()

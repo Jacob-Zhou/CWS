@@ -24,7 +24,7 @@ class Instance(object):
         self.decompose_sent(lines, max_word_length)
 
     def __len__(self):
-        return len(self.chars_s)
+        return len(self.labels_s)
 
     @staticmethod
     def compose_sent(chars_s, bichars_s, labels_s):
