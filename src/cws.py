@@ -256,7 +256,7 @@ class CWS(object):
                                           for i in inst.labels_s])
             # each position has a list of subword indices
             # if the subword [i, j) does not exist in vocabularies,
-            # then numericalize it with unk_index
+            # then numericalize it with pad_index
             inst.subwords_i = torch.zeros(
                 len(inst), self._conf.max_word_length, dtype=torch.long
             )
@@ -266,6 +266,9 @@ class CWS(object):
                     for j in inst.subwords_s[i]
                 ])
                 inst.subwords_i[i, :len(word_indices)] = word_indices
+            unk_mask = inst.subwords_i.eq(self._subword_dict.unk_index)
+            unk_mask[:, 0] = 0
+            inst.subwords_i[unk_mask] = self._subword_dict.pad_index
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')

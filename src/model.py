@@ -58,7 +58,7 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
-        subword_mask = subwords.ne(pad_index) & subwords.ne(unk_index)
+        subword_mask = subwords.ne(pad_index)
         # set indices larger than num_embeddings to unk_index, that is,
         # make all subwords not in emb_subword but in pretrained to unk
         ext_mask = subwords.ge(self.emb_subword.num_embeddings)
