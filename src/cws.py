@@ -239,9 +239,13 @@ class CWS(object):
                 # for all sequences consisting of a subsequence and
                 # a subword starting at 0, 1, ..., i-1 and ending at i, choose
                 # the one with max probs and record split point of its subword
+                # [batch_size, n_labels]
                 delta[i - 1], splits[i - 1] = shortcuts[:i, i - 1].max(dim=0)
+                # [batch_size, n_labels, n_labels]
                 scores = self._trans + delta[i - 1].unsqueeze(-1)
+                # [batch_size, n_labels]
                 scores, labels[i] = scores.max(dim=1)
+                # [word_length, batch_size, n_labels]
                 shortcuts[i, i:i+word_length] = scores + emit[i, :seq_len-i]
             delta[-1], splits[-1] = shortcuts[:, -1].max(dim=0)
 
