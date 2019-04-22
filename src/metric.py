@@ -54,4 +54,8 @@ class Metric(object):
                self.backward_time, self.decode_time,
                time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time()))))
         if self.gold_num > 0:
-            print(Counter(i for inst in dataset.all_inst for i in inst.word_lens))
+            count = Counter(i for inst in dataset.all_inst
+                            for i in inst.word_lens)
+            total = sum(count.values())
+            print(f"1: {count[1]/total:.2%}, 2: {count[2]/total:.2%}, "
+                  f"3: {count[3]/total:.2%}, 4: {count[4]/total:.2%}")

@@ -166,18 +166,24 @@ class CWS(object):
         print('.', end='')
         # the bos and eos tokens are added to each char sequence
         chars, bichars, subwords, sublabels = self.compose_batch(insts)
-        # ignore all pad and unk tokens in subwords
-        subword_mask = subwords.ne(self._subword_dict.pad_index)
-        subword_mask &= subwords.ne(self._subword_dict.unk_index)
-        subword_mask &= subwords.ne(self._subword_dict.eos_index)
-        subword_mask[..., 0] = 1
-        subword_mask = subword_mask[:, 1:-1]
+        mask = subwords.ne(self._subword_dict.pad_index)
+        mask &= subwords.ne(self._subword_dict.eos_index)
+        mask = mask[:, 1:-1]
+        char_mask, subword_mask = mask.split([1, subwords.size(2) - 1], dim=-1)
+        labels, sublabels = sublabels.split([1, subwords.size(2) - 1], dim=-1)
 
         time1 = time.time()
-        out = self._model(chars, bichars, subwords)
+        x_char, x_subword = self._model(chars, bichars, subwords)
         time2 = time.time()
 
-        loss = self._model.get_loss(out, sublabels, subword_mask)
+        char_loss = self._model.get_loss(x_char, labels, char_mask)
+        if subword_mask.any():
+            subword_loss = self._model.get_loss(x_subword,
+                                                sublabels,
+                                                subword_mask)
+        else:
+            subword_loss = 0
+        loss = char_loss + subword_loss
         self._metric.loss_accumulated += loss.item()
         time3 = time.time()
 
@@ -187,8 +193,10 @@ class CWS(object):
                                      max_norm=self._conf.clip)
             self._optimizer.step()
         time4 = time.time()
-
-        self.decode(out, insts, subword_mask)
+        x_last = x_char.new_full(x_char.shape[:-1], float('-inf'))
+        x_char = torch.cat((x_char, x_last.unsqueeze(-1)), dim=-1)
+        out = torch.cat((x_char, x_subword), dim=2)
+        self.decode(out, insts, mask)
         time5 = time.time()
 
         self._metric.sent_num += len(insts)
@@ -297,7 +305,7 @@ class CWS(object):
                                           for i in inst.labels_s])
             # each position has a list of subword indices
             # if the subword [i, j) does not exist in vocabularies,
-            # then numericalize it with unk_index
+            # then numericalize it with pad_index
             inst.subwords_i = torch.zeros(len(inst) + 2,
                                           self._conf.max_word_length).long()
             inst.sublabels_i = torch.zeros(len(inst),
@@ -315,6 +323,9 @@ class CWS(object):
                 inst.sublabels_i[i, :len(label_indices)] = label_indices
             inst.subwords_i[0, 0] = self._subword_dict.bos_index
             inst.subwords_i[-1, 0] = self._subword_dict.eos_index
+            unk_mask = inst.subwords_i.eq(self._subword_dict.unk_index)
+            unk_mask[:, 0] = 0
+            inst.subwords_i[unk_mask] = self._subword_dict.pad_index
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')

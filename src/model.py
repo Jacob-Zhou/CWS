@@ -48,8 +48,10 @@ class CWSModel(nn.Module):
                                   dropout=self._conf.lstm_dropout,
                                   bidirectional=True)
 
-        self.ffn = nn.Linear(in_features=self._conf.n_lstm_hidden*6,
-                             out_features=len(label_dict))
+        self.ffn_char = nn.Linear(in_features=self._conf.n_lstm_hidden*6,
+                                  out_features=len(label_dict) - 1)
+        self.ffn_subword = nn.Linear(in_features=self._conf.n_lstm_hidden*6,
+                                     out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         self.reset_parameters()
         print('init models done')
@@ -59,7 +61,7 @@ class CWSModel(nn.Module):
 
     def forward(self, chars, bichars, subwords):
         mask = chars.ne(pad_index)
-        subword_mask = subwords.ne(pad_index) & subwords.ne(unk_index)
+        subword_mask = subwords.ne(pad_index)
         # set indices larger than num_embeddings to unk_index, that is,
         # make all subwords not in emb_subword but in pretrained to unk
         ext_mask = subwords.ge(self.emb_subword.num_embeddings)
@@ -93,11 +95,11 @@ class CWSModel(nn.Module):
         b_span = b_x[1:-1] - b_sub
 
         x = torch.cat((h_x, h_sub, f_span, b_span), dim=-1)
-        x = x.transpose(0, 2)
-        x = self.ffn(x)
-        x[..., 0, -1] = float('-inf')
+        x_char, x_subword = x.split([1, max_len - 1])
+        x_char = self.ffn_char(x_char).transpose(0, 2)
+        x_subword = self.ffn_subword(x_subword).transpose(0, 2)
 
-        return x
+        return x_char, x_subword
 
     def get_loss(self, out, target, mask):
         return self.criterion(out[mask], target[mask])
