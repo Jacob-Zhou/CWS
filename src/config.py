@@ -87,6 +87,11 @@ class Configurable(object):
         return self._conf.getint('Run', 'max_bucket_num')
 
     @property
+    def max_sent_length(self):
+        # negative means not using bucket
+        return self._conf.getint('Run', 'max_sent_length')
+
+    @property
     def is_train(self):
         return self._conf.getint('Run', 'is_train') > 0
 

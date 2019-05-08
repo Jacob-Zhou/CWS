@@ -282,6 +282,7 @@ class CWS(object):
         for name in names:
             dataset = Dataset(filename=name,
                               max_bucket_num=self._conf.max_bucket_num,
+                              max_sent_length=self._conf.max_sent_length,
                               char_batch_size=self._conf.char_batch_size,
                               sent_batch_size=self._conf.sent_batch_size,
                               inst_num_max=inst_num_max,

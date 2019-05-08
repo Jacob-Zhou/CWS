@@ -12,6 +12,7 @@ class Dataset(object):
 
     def __init__(self, filename,
                  max_bucket_num=80,
+                 max_sent_length=512,
                  char_batch_size=500,
                  sent_batch_size=200,
                  inst_num_max=-1,
@@ -30,10 +31,11 @@ class Dataset(object):
                     length = len(lines)
                     if length >= min_len:
                         inst = Instance(len(self._instances), lines)
-                        self._instances.append(inst)
-                        self.char_num_total += length
-                        if (inst_num_max > 0) and (len(self) == inst_num_max):
-                            break
+                        if len(inst) < max_sent_length:
+                            self._instances.append(inst)
+                            self.char_num_total += length
+                            if inst_num_max > 0 and len(self) == inst_num_max:
+                                break
                     lines = []
                 else:
                     lines.append(line)

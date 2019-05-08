@@ -8,6 +8,7 @@ dict_dir = exp/ctb6/
 model_dir = exp/ctb6/
 inst_num_max = -1
 max_bucket_num = 72
+max_sent_length = 512
 sent_batch_size = 10
 char_batch_size = 500
 
