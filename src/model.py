@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from src.common import pad_index
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from src.modules import ScalarMix
 
 
 class CWSModel(nn.Module):
@@ -34,9 +35,10 @@ class CWSModel(nn.Module):
                                      embedding_dim=self._conf.char_emb_dim)
         self.emb_bichar = nn.Embedding(num_embeddings=len(bichar_dict),
                                        embedding_dim=self._conf.char_emb_dim)
+        self.scalar_mix = ScalarMix(4)
         self.emb_dropout = nn.Dropout(self._conf.emb_dropout)
 
-        self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2,
+        self.lstm_layer = nn.LSTM(input_size=self._conf.char_emb_dim*2+768,
                                   hidden_size=self._conf.lstm_hidden_dim//2,
                                   num_layers=self._conf.num_lstm_layers,
                                   batch_first=True,
@@ -48,13 +50,14 @@ class CWSModel(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
         print('init models done')
 
-    def forward(self, chars, bichars):
+    def forward(self, chars, bichars, bert):
         mask = chars.ne(pad_index)
         seq_lens = mask.sum(1)
 
         emb_char = self.emb_char(chars)
         emb_bichar = self.emb_bichar(bichars)
-        x = self.emb_dropout(torch.cat((emb_char, emb_bichar), -1))
+        bert = self.scalar_mix(bert.permute(2, 0, 1, 3))
+        x = self.emb_dropout(torch.cat((emb_char, emb_bichar, bert), -1))
 
         sorted_lens, sorted_indices = torch.sort(seq_lens, descending=True)
         inverse_indices = sorted_indices.argsort()

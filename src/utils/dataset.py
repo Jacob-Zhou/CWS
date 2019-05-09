@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import math
+import os
 import random
 from collections import Counter
+
+import torch
 
 from .bucketing import Bucketing
 from .instance import Instance
@@ -23,20 +26,24 @@ class Dataset(object):
         self._instances = []
 
         self.char_num_total = 0
+
+        berts = torch.load(os.path.splitext(filename)[0] + '.bert')
         with open(self._filename, mode='r', encoding='utf-8') as f:
-            lines = []
+            lines, count = [], 0
             for line in f:
                 line = line.strip()
                 if len(line) == 0:
                     length = len(lines)
                     if length >= min_len:
                         inst = Instance(len(self._instances), lines)
+                        inst.bert = berts[count]
                         if len(inst) < max_sent_length:
                             self._instances.append(inst)
                             self.char_num_total += length
                             if inst_num_max > 0 and len(self) == inst_num_max:
                                 break
                     lines = []
+                    count += 1
                 else:
                     lines.append(line)
         assert len(self) > 0

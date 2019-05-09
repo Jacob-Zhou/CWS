@@ -155,10 +155,10 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts):
         print('.', end='')
-        chars, bichars, labels = self.compose_batch(insts)
+        chars, bichars, bert, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        out = self._model(chars, bichars)
+        out = self._model(chars, bichars, bert)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
@@ -311,10 +311,12 @@ class CWS(object):
     def compose_batch(self, insts):
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
+        bert = pad_sequence([inst.bert for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             chars = chars.cuda()
             bichars = bichars.cuda()
+            bert = bert.cuda()
             labels = labels.cuda()
-        return chars, bichars, labels
+        return chars, bichars, bert, labels
