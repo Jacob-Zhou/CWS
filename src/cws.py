@@ -121,9 +121,10 @@ class CWS(object):
         self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
-            for batch in self._train_datasets[0]:
-                self._optimizer.zero_grad()
-                self.train_or_eval_one_batch(batch)
+            for i in torch.randperm(len(self._train_datasets)).tolist():
+                for batch in self._train_datasets[i]:
+                    self._optimizer.zero_grad()
+                    self.train_or_eval_one_batch(batch)
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
             self._metric.clear()
