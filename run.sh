@@ -1,6 +1,5 @@
 cudaN=0
-des="conll-bucketing"
-exe="nohup python -u main.py --exp-des $des --device cuda:$cudaN --config_file config.txt"
+exe="nohup python -u main.py --device cuda:$cudaN --config_file config.txt"
 # $exe --is_dictionary_exist 0 --is_train 1 --is_test 0 > results/log.create-dict 2>&1 &
 $exe --is_dictionary_exist 1 --is_train 1 --is_test 0 > results/log 2>&1 &
 
