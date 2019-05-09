@@ -278,7 +278,7 @@ class CWS(object):
 
     def load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
         assert len(datasets) == 0
-        names = filenames.strip().split(':')
+        names = filenames.split(';')
         assert len(names) > 0
         for name in names:
             dataset = Dataset(filename=name,
