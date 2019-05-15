@@ -16,7 +16,7 @@ class Metric(object):
         self.correct_num = 0
         self.total_labels = 0
         self.correct_labels = 0
-        self.loss_accumulated = 0.
+        self.total_loss = 0.
         self.start_time = time.time()
         self.time_gap = 0.
         self.forward_time = 0.
@@ -42,8 +42,9 @@ class Metric(object):
 
     def compute_and_output(self, dataset, eval_cnt):
         self.time_gap = float(time.time() - self.start_time)
-        print("\n%30s(%5d): loss=%.3f " %
-              (dataset.filename_short, eval_cnt, self.loss_accumulated), end='')
+        print("\n%30s(%5d): loss=%.3f " % (dataset.filename_short, eval_cnt,
+                                           self.total_loss / self.sent_num),
+              end='')
         if self.gold_num > 0:
             print("precision=%.3f, recall=%.3f, fscore=%.3f, " %
                   (self.precision, self.recall, self.fscore), end='')

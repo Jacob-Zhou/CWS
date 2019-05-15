@@ -121,9 +121,20 @@ class CWS(object):
         self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
-            for i in torch.randperm(len(self._train_datasets)).tolist():
-                for batch in self._train_datasets[i]:
+            aux_datasets = self._train_datasets[1:]
+            aux_iters = [iter(dataset) for dataset in aux_datasets]
+            for batch in self._train_datasets[0]:
+                self._optimizer.zero_grad()
+                self.train_or_eval_one_batch(batch)
+                if not aux_datasets:
+                    continue
+                for i, aux_iter in enumerate(aux_iters):
                     self._optimizer.zero_grad()
+                    try:
+                        batch = next(aux_iter)
+                    except Exception as e:
+                        aux_iter = iter(aux_datasets[i])
+                        batch = next(aux_iter)
                     self.train_or_eval_one_batch(batch)
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
@@ -163,7 +174,7 @@ class CWS(object):
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
-        self._metric.loss_accumulated += loss.item()
+        self._metric.total_loss += loss.item()
         time3 = time.time()
 
         if self.training:
