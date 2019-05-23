@@ -4,22 +4,22 @@ is_train = 1
 device-x = cpu
 device = cuda:0
 cpu_thread_num = 8
-dict_dir = exp/ctb6/
-model_dir = exp/ctb6/
+dict_dir = exp/ctb9/
+model_dir = exp/ctb9/
 inst_num_max = -1
 max_bucket_num = 72
 max_sent_length = 500
 sent_batch_size = 10
-char_batch_size = 500
+char_batch_sizes = 500,5000
 
 [Test]
 model_eval_num = 0
 
 [Train]
 data_dir = data
-train_files = %(data_dir)s/ctb6/train.conll
-dev_files = %(data_dir)s/ctb6/dev.conll
-test_files = %(data_dir)s/ctb6/test.conll
+train_files = %(data_dir)s/ctb9/train.org.conll,%(data_dir)s/pku/train.trans.conll
+dev_files = %(data_dir)s/ctb9/dev.org.conll
+test_files = %(data_dir)s/ctb9/test.org.conll
 is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 10

@@ -58,10 +58,9 @@ class CWS(object):
 
     def run(self):
         if self._conf.is_train:
-            self.load_datasets(self._conf.train_files,
-                               self._train_datasets,
-                               inst_num_max=self._conf.inst_num_max,
-                               shuffle=True)
+            self._train_datasets = self.load_datasets(self._conf,
+                                                      self._conf.train_files,
+                                                      shuffle=True)
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 for dataset in self._train_datasets:
@@ -73,13 +72,11 @@ class CWS(object):
                 return
         self.load_dictionaries(self._conf.dict_dir)
         if self._conf.is_train:
-            self.load_datasets(self._conf.dev_files,
-                               self._dev_datasets,
-                               inst_num_max=self._conf.inst_num_max)
+            self._dev_datasets = self.load_datasets(self._conf,
+                                                    self._conf.dev_files)
 
-        self.load_datasets(self._conf.test_files,
-                           self._test_datasets,
-                           inst_num_max=self._conf.inst_num_max)
+        self._test_datasets = self.load_datasets(self._conf,
+                                                 self._conf.test_files)
 
         print('numericalizing all instances in all datasets')
         for dataset in self._train_datasets + self._dev_datasets + \
@@ -124,17 +121,17 @@ class CWS(object):
             aux_datasets = self._train_datasets[1:]
             aux_iters = [iter(dataset) for dataset in aux_datasets]
             for batch in self._train_datasets[0]:
-                self._optimizer.zero_grad()
-                self.train_or_eval_one_batch(batch)
-                if not aux_datasets:
-                    continue
+                batches = []
                 for i, aux_iter in enumerate(aux_iters):
-                    self._optimizer.zero_grad()
                     try:
-                        batch = next(aux_iter)
-                    except Exception as e:
-                        aux_iter = iter(aux_datasets[i])
-                        batch = next(aux_iter)
+                        aux_batch = next(aux_iter)
+                    except StopIteration as e:
+                        aux_iters[i] = iter(aux_datasets[i])
+                        aux_batch = next(aux_iters[i])
+                    batches.append(aux_batch)
+                batches.append(batch)
+                for batch in batches:
+                    self._optimizer.zero_grad()
                     self.train_or_eval_one_batch(batch)
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
@@ -287,19 +284,19 @@ class CWS(object):
         else:
             print('Delete model %s error, not exist.' % path)
 
-    def load_datasets(self, filenames, datasets, inst_num_max, shuffle=False):
-        assert len(datasets) == 0
-        names = filenames.split(';')
-        assert len(names) > 0
-        for name in names:
-            dataset = Dataset(filename=name,
-                              max_bucket_num=self._conf.max_bucket_num,
-                              max_sent_length=self._conf.max_sent_length,
-                              char_batch_size=self._conf.char_batch_size,
-                              sent_batch_size=self._conf.sent_batch_size,
-                              inst_num_max=inst_num_max,
-                              shuffle=shuffle)
-            datasets.append(dataset)
+    def load_datasets(self, conf, filenames, shuffle=False):
+        datasets = [
+            Dataset(filename=name,
+                    max_bucket_num=conf.max_bucket_num,
+                    max_sent_length=conf.max_sent_length,
+                    char_batch_size=conf.char_batch_sizes[i],
+                    sent_batch_size=conf.sent_batch_size,
+                    inst_num_max=conf.inst_num_max,
+                    shuffle=shuffle)
+            for i, name in enumerate(filenames)
+        ]
+
+        return datasets
 
     @staticmethod
     def set_predict_result(inst, pred, label_dict):

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+from ast import literal_eval
 from configparser import ConfigParser
 
 
@@ -78,8 +79,8 @@ class Configurable(object):
         return self._conf.getint('Run', 'sent_batch_size')
 
     @property
-    def char_batch_size(self):
-        return self._conf.getint('Run', 'char_batch_size')
+    def char_batch_sizes(self):
+        return literal_eval(self._conf.get('Run', 'char_batch_sizes'))
 
     @property
     def max_bucket_num(self):
@@ -120,17 +121,17 @@ class Configurable(object):
         return self._conf.getint('Test', 'model_eval_num')
 
     @property
-    def test_files(self):
-        return self._conf.get('Train', 'test_files')
-
-    @property
     def train_files(self):
-        # use ; to split multiple training datasets
-        return self._conf.get('Train', 'train_files')
+        # use , to split multiple training datasets
+        return self._conf.get('Train', 'train_files').split(',')
 
     @property
     def dev_files(self):
-        return self._conf.get('Train', 'dev_files')
+        return self._conf.get('Train', 'dev_files').split(',')
+
+    @property
+    def test_files(self):
+        return self._conf.get('Train', 'test_files').split(',')
 
     @property
     def is_dictionary_exist(self):
