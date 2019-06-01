@@ -17,7 +17,7 @@ model_eval_num = 0
 
 [Train]
 data_dir = data
-train_files = %(data_dir)s/ctb9/train.org.conll,%(data_dir)s/pku/train.trans.conll
+train_files = %(data_dir)s/ctb9/train.org.conll,%(data_dir)s/pku/train.org.conll
 dev_files = %(data_dir)s/ctb9/dev.org.conll
 test_files = %(data_dir)s/ctb9/test.org.conll
 is_dictionary_exist = 1

@@ -45,10 +45,12 @@ class CWSModel(nn.Module):
 
         self.ffn = nn.Linear(in_features=self._conf.lstm_hidden_dim,
                              out_features=len(label_dict))
+        self.ffn_aux = nn.Linear(in_features=self._conf.lstm_hidden_dim,
+                                 out_features=len(label_dict))
         self.criterion = nn.CrossEntropyLoss()
         print('init models done')
 
-    def forward(self, chars, bichars):
+    def forward(self, chars, bichars, aux=False):
         mask = chars.ne(pad_index)
         seq_lens = mask.sum(1)
 
@@ -63,7 +65,7 @@ class CWSModel(nn.Module):
         x, _ = pad_packed_sequence(x, True)
         x = x[inverse_indices]
 
-        x = self.ffn(x)
+        x = self.ffn_aux(x) if aux else self.ffn(x)
 
         return x
 

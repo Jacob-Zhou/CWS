@@ -63,9 +63,7 @@ class CWS(object):
                                                       shuffle=True)
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
-                for dataset in self._train_datasets:
-                    self.create_dictionaries(dataset)
-
+                self.create_dictionaries(self._train_datasets)
                 self.save_dictionaries(self._conf.dict_dir)
                 self.load_dictionaries(self._conf.dict_dir)
 
@@ -79,9 +77,9 @@ class CWS(object):
                                                  self._conf.test_files)
 
         print('numericalizing all instances in all datasets')
-        for dataset in self._train_datasets + self._dev_datasets + \
-                self._test_datasets:
-            self.numericalize_all_instances(dataset)
+        self.numericalize_all_instances(self._train_datasets)
+        self.numericalize_all_instances(self._dev_datasets)
+        self.numericalize_all_instances(self._test_datasets)
 
         self._model.init_models(self._char_dict,
                                 self._bichar_dict,
@@ -121,18 +119,16 @@ class CWS(object):
             aux_datasets = self._train_datasets[1:]
             aux_iters = [iter(dataset) for dataset in aux_datasets]
             for batch in self._train_datasets[0]:
-                batches = []
                 for i, aux_iter in enumerate(aux_iters):
                     try:
                         aux_batch = next(aux_iter)
                     except StopIteration as e:
                         aux_iters[i] = iter(aux_datasets[i])
                         aux_batch = next(aux_iters[i])
-                    batches.append(aux_batch)
-                batches.append(batch)
-                for batch in batches:
                     self._optimizer.zero_grad()
-                    self.train_or_eval_one_batch(batch)
+                    self.train_or_eval_one_batch(aux_batch, True)
+                self._optimizer.zero_grad()
+                self.train_or_eval_one_batch(batch)
             self._metric.compute_and_output(self._train_datasets[0],
                                             eval_cnt)
             self._metric.clear()
@@ -162,12 +158,12 @@ class CWS(object):
         print("The best fscore of dev is %.3f at epoch %d" %
               (best_accuracy, best_eval_cnt))
 
-    def train_or_eval_one_batch(self, insts):
+    def train_or_eval_one_batch(self, insts, aux=False):
         print('.', end='')
         chars, bichars, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        out = self._model(chars, bichars)
+        out = self._model(chars, bichars, aux)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
@@ -237,21 +233,23 @@ class CWS(object):
             CWS.set_predict_result(inst, pred, self._label_dict)
             CWS.compute_accuracy_one_inst(inst, self._metric, self.training)
 
-    def create_dictionaries(self, dataset):
-        for inst in dataset.all_inst:
-            for i in range(len(inst)):
-                self._char_dict.add_key_into_counter(inst.chars_s[i])
-                self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
-                self._label_dict.add_key_into_counter(inst.labels_s[i])
+    def numericalize_all_instances(self, datasets):
+        for dataset in datasets:
+            for inst in dataset.all_inst:
+                inst.chars_i = torch.tensor([self._char_dict.get_id(i)
+                                             for i in inst.chars_s])
+                inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
+                                               for i in inst.bichars_s])
+                inst.labels_i = torch.tensor([self._label_dict.get_id(i)
+                                              for i in inst.labels_s])
 
-    def numericalize_all_instances(self, dataset):
-        for inst in dataset.all_inst:
-            inst.chars_i = torch.tensor([self._char_dict.get_id(i)
-                                         for i in inst.chars_s])
-            inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
-                                           for i in inst.bichars_s])
-            inst.labels_i = torch.tensor([self._label_dict.get_id(i)
-                                          for i in inst.labels_s])
+    def create_dictionaries(self, datasets):
+        for dataset in datasets:
+            for inst in dataset.all_inst:
+                for i in range(len(inst)):
+                    self._char_dict.add_key_into_counter(inst.chars_s[i])
+                    self._bichar_dict.add_key_into_counter(inst.bichars_s[i])
+                    self._label_dict.add_key_into_counter(inst.labels_s[i])
 
     def load_dictionaries(self, path):
         path = os.path.join(path, 'dict/')
