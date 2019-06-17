@@ -10,7 +10,7 @@ import torch.optim as optim
 from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.utils import Dataset, Embedding, VocabDict
+from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -303,7 +303,8 @@ class CWS(object):
 
     @staticmethod
     def compute_accuracy_one_inst(inst, eval_metrics, training):
-        gold_num, pred_num, correct_num, total_labels, correct_labels = inst.evaluate()
+        gold_num, pred_num, correct_num, \
+            total_labels, correct_labels = inst.evaluate()
         if not training:
             eval_metrics.gold_num += gold_num
             eval_metrics.pred_num += pred_num
