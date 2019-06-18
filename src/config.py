@@ -134,6 +134,18 @@ class Configurable(object):
         return self._conf.get('Train', 'test_files').split(',')
 
     @property
+    def bert_path(self):
+        return self._conf.get('Train', 'bert_path')
+
+    @property
+    def bert_vocab(self):
+        return self._conf.get('Train', 'bert_vocab')
+
+    @property
+    def bert_config(self):
+        return self._conf.get('Train', 'bert_config')
+
+    @property
     def is_dictionary_exist(self):
         return self._conf.getint('Train', 'is_dictionary_exist') > 0
 
@@ -154,20 +166,32 @@ class Configurable(object):
         return self._conf.getint('Train', 'cutoff_freq')
 
     @property
-    def char_emb_dim(self):
-        return self._conf.getint('Network', 'char_emb_dim')
+    def n_bert_embed(self):
+        return self._conf.getint('Network', 'n_bert_embed')
 
     @property
-    def emb_dropout(self):
-        return self._conf.getfloat('Network', 'emb_dropout')
+    def bert_dropout(self):
+        return self._conf.getfloat('Network', 'bert_dropout')
 
     @property
-    def lstm_hidden_dim(self):
-        return self._conf.getint('Network', 'lstm_hidden_dim')
+    def n_bert_layers(self):
+        return self._conf.getint('Network', 'n_bert_layers')
 
     @property
-    def num_lstm_layers(self):
-        return self._conf.getint('Network', 'num_lstm_layers')
+    def n_char_embed(self):
+        return self._conf.getint('Network', 'n_char_embed')
+
+    @property
+    def embed_dropout(self):
+        return self._conf.getfloat('Network', 'embed_dropout')
+
+    @property
+    def n_lstm_hidden(self):
+        return self._conf.getint('Network', 'n_lstm_hidden')
+
+    @property
+    def n_lstm_layers(self):
+        return self._conf.getint('Network', 'n_lstm_layers')
 
     @property
     def lstm_dropout(self):

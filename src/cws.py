@@ -7,10 +7,11 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from pytorch_pretrained_bert.tokenization import BertTokenizer
 from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
-from src.utils import Dataset, Embedding, VocabDict
+from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -36,6 +37,8 @@ class CWS(object):
         self._train_datasets = []
         self._dev_datasets = []
         self._test_datasets = []
+
+        self._tokenizer = BertTokenizer.from_pretrained(self._conf.bert_vocab)
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
@@ -122,7 +125,7 @@ class CWS(object):
                 for i, aux_iter in enumerate(aux_iters):
                     try:
                         aux_batch = next(aux_iter)
-                    except StopIteration as e:
+                    except StopIteration:
                         aux_iters[i] = iter(aux_datasets[i])
                         aux_batch = next(aux_iters[i])
                     self._optimizer.zero_grad()
@@ -160,10 +163,10 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts, aux=False):
         print('.', end='')
-        chars, bichars, labels = self.compose_batch(insts)
+        subwords, chars, bichars, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        out = self._model(chars, bichars, aux)
+        out = self._model(subwords, chars, bichars, aux)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
@@ -236,6 +239,12 @@ class CWS(object):
     def numericalize_all_instances(self, datasets):
         for dataset in datasets:
             for inst in dataset.all_inst:
+                # for chinese, no extra operations is required
+                inst.subwords_i = torch.tensor(
+                    self._tokenizer.convert_tokens_to_ids(
+                        ['[CLS]']+[i if i in self._tokenizer.vocab else '[UNK]'
+                                   for i in inst.chars_s]+['[SEP]'])
+                )
                 inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                              for i in inst.chars_s])
                 inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
@@ -303,7 +312,8 @@ class CWS(object):
 
     @staticmethod
     def compute_accuracy_one_inst(inst, eval_metrics, training):
-        gold_num, pred_num, correct_num, total_labels, correct_labels = inst.evaluate()
+        gold_num, pred_num, correct_num,\
+            total_labels, correct_labels = inst.evaluate()
         if not training:
             eval_metrics.gold_num += gold_num
             eval_metrics.pred_num += pred_num
@@ -316,12 +326,14 @@ class CWS(object):
         self._model.train(training)
 
     def compose_batch(self, insts):
+        subwords = pad_sequence([inst.subwords_i for inst in insts], True)
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
+            subwords = subwords.cuda()
             chars = chars.cuda()
             bichars = bichars.cuda()
             labels = labels.cuda()
-        return chars, bichars, labels
+        return subwords, chars, bichars, labels

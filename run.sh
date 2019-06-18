@@ -1,7 +1,7 @@
-cudaN=1
+cudaN=2
 exe="nohup python -u main.py --device cuda:$cudaN --config_file config.txt"
-# $exe --is_dictionary_exist 0 --is_train 1 --is_test 0 > results/log.create-dict 2>&1 &
-$exe --is_dictionary_exist 1 --is_train 1 --is_test 0 > results/log.mtl 2>&1 &
+#$exe --is_dictionary_exist 0 --is_train 1 --is_test 0 > results/log.create-dict 2>&1 &
+$exe --is_dictionary_exist 1 --is_train 1 --is_test 0 > results/log.mtl.bert 2>&1 &
 
 # num=`ls -d models-* | egrep -o '[0-9]+'`
 # echo $num

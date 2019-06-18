@@ -50,7 +50,7 @@ class Dataset(object):
 
         self._bucket_num = -1
         self._use_bucket = (max_bucket_num > 1)
-        self._buckets = None  # [(max_len, inst_num_one_batch, bucket)]
+        self._buckets = None  # [(max_len, inst_num, bucket)]
         self._bucket_sent_index = 0
         self._shuffle = shuffle
 
@@ -74,23 +74,23 @@ class Dataset(object):
             for inst in self.all_inst:
                 buckets[len2bucket_idx[len(inst)]].append(inst)
             batch_num_total = 0
-            inst_num_one_batch_buckets = []
+            inst_num_buckets = []
             for (i, max_len) in enumerate(max_len_buckets):
                 inst_num = len(buckets[i])
-                batch_num_to_provide = max(
+                batch_num = max(
                     1, round(inst_num * max_len / self._char_batch_size)
                 )
-                print("i, inst_num, max_len, batch_num_to_provide, batch_num_total = ",
-                      i, inst_num, max_len, batch_num_to_provide, batch_num_total)
-                batch_num_total += batch_num_to_provide
-                inst_num_one_batch = math.ceil(inst_num / batch_num_to_provide)
+                print("i, inst_num, max_len, batch_num, batch_num_total = ",
+                      i, inst_num, max_len, batch_num, batch_num_total)
+                batch_num_total += batch_num
+                inst_num = math.ceil(inst_num / batch_num)
                 # The goal is to avoid the last batch of one bucket contains too few instances
-                inst_num_one_batch_buckets.append(inst_num_one_batch)
-                # assert inst_num_one_batch * (batch_num_to_provide-0.5) < inst_num
+                inst_num_buckets.append(inst_num)
+                # assert inst_num * (batch_num-0.5) < inst_num
             print('%s can provide %d batches in total with %d buckets' %
                   (self._filename_short, batch_num_total, self._bucket_num))
             self._buckets = [(ml, nb, b)
-                             for ml, nb, b in zip(max_len_buckets, inst_num_one_batch_buckets, buckets)]
+                             for ml, nb, b in zip(max_len_buckets, inst_num_buckets, buckets)]
 
     def __len__(self):
         return len(self._instances)
@@ -125,9 +125,9 @@ class Dataset(object):
                 random.shuffle(self._buckets)
             raise StopIteration
 
-        max_len, inst_num_one_batch, this_bucket = self._buckets[self._bucket_sent_index]
+        max_len, inst_num, this_bucket = self._buckets[self._bucket_sent_index]
         assert self._sent_index < len(this_bucket)
-        idx_next_batch = self._sent_index + inst_num_one_batch
+        idx_next_batch = self._sent_index + inst_num
         one_batch = this_bucket[self._sent_index:idx_next_batch]
         assert len(one_batch) > 0
         if idx_next_batch >= len(this_bucket):

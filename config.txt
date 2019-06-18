@@ -20,6 +20,9 @@ data_dir = data
 train_files = %(data_dir)s/ctb9/train.org.conll,%(data_dir)s/pku/train.org.conll
 dev_files = %(data_dir)s/ctb9/dev.org.conll
 test_files = %(data_dir)s/ctb9/test.org.conll
+bert_path = %(data_dir)s/bert-base-chinese.tar.gz
+bert_vocab = %(data_dir)s/bert-base-chinese-vocab.txt
+bert_config = %(data_dir)s/bert_config.json
 is_dictionary_exist = 1
 train_max_eval_num = 1000
 save_model_after_eval_num = 10
@@ -27,10 +30,13 @@ cutoff_freq = 1
 patience = 10
 
 [Network]
-char_emb_dim = 50
-emb_dropout = 0.5
-lstm_hidden_dim = 300
-num_lstm_layers = 2
+n_char_embed = 50
+n_bert_layers = 12
+n_bert_embed = 100
+bert_dropout = 0.1
+embed_dropout = 0.5
+n_lstm_hidden = 150
+n_lstm_layers = 2
 lstm_dropout = 0.2
 
 [Optimizer]
