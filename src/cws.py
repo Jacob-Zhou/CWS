@@ -84,10 +84,10 @@ class CWS(object):
         print(self._model)
 
         if torch.cuda.is_available():
-            self._model.to(self.self._conf.device)
-            self._strans = self._strans.to(self.self._conf.device)
-            self._etrans = self._etrans.to(self.self._conf.device)
-            self._trans = self._trans.to(self.self._conf.device)
+            self._model.to(self._conf.device)
+            self._strans = self._strans.to(self._conf.device)
+            self._etrans = self._etrans.to(self._conf.device)
+            self._trans = self._trans.to(self._conf.device)
 
         if self._conf.is_train:
             assert self._optimizer is None

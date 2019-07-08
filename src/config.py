@@ -17,7 +17,7 @@ class Config(object):
                            for option, value in self._conf.items(section))
         if not os.path.isdir(self.model_dir):
             os.mkdir(self.model_dir)
-        config.write(open(os.path.join(self.model_dir, path), 'w'))
+        config.write(open(os.path.join(self.model_dir, 'config'), 'w'))
         print('Loaded config file successfully.')
 
     def __repr__(self):
