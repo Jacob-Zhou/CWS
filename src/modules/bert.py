@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import torch
 import torch.nn as nn
 from pytorch_pretrained_bert import BertModel
-from torch.nn.utils.rnn import pad_sequence
 
 from .scalar_mix import ScalarMix
 
