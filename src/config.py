@@ -5,202 +5,39 @@ from ast import literal_eval
 from configparser import ConfigParser
 
 
-class Configurable(object):
-    def __init__(self, config_file, extra_args):
-        self.config_file = config_file
-        print("read config from " + config_file)
+class Config(object):
+
+    def __init__(self, path):
+        print("read config from " + path)
         config = ConfigParser()
-        config.read(config_file)
-        if extra_args:
-            extra_args = dict([(k[2:], v) for k, v in zip(
-                extra_args[0::2], extra_args[1::2])])
-        for section in config.sections():
-            for k, v in config.items(section):
-                if k in extra_args:
-                    v = type(v)(extra_args[k])
-                    config.set(section, k, v)
+        config.read(path)
         self._conf = config
+        self.kwargs = dict((option, literal_eval(value))
+                           for section in self._conf.sections()
+                           for option, value in self._conf.items(section))
         if not os.path.isdir(self.model_dir):
             os.mkdir(self.model_dir)
-        assert self.model_dir.endswith('/')
-        config.write(open(self.model_dir + self.config_file + '.bak', 'w'))
+        config.write(open(os.path.join(self.model_dir, path), 'w'))
         print('Loaded config file successfully.')
-        for section in config.sections():
-            for k, v in config.items(section):
-                print(k, v)
 
-    @property
-    def cpu_thread_num(self):
-        return self._conf.getint('Run', 'cpu_thread_num')
+    def __repr__(self):
+        s = "-" * 20 + "-+-" + "-" * 25 + "\n"
+        s += f"{'Param':20} | {'Value':25}\n"
+        s += "-" * 20 + "-+-" + "-" * 25 + "\n"
+        for i, (option, value) in enumerate(self.kwargs.items()):
+            s += f"{option:20} | {value}\n"
+        s += "-" * 20 + "-+-" + "-" * 25 + "\n"
 
-    @property
-    def multi_thread_decode(self):
-        return self._conf.getint('Run', 'multi_thread_decode') != 0
+        return s
 
-    @property
-    def viterbi_decode(self):
-        return self._conf.getint('Run', 'viterbi_decode') != 0
+    def __getattr__(self, attr):
+        return self.kwargs.get(attr, None)
 
-    @property
-    def use_labeled_crf_loss(self):
-        return self._conf.getint('Run', 'use_labeled_crf_loss') != 0
+    def __getstate__(self):
+        return vars(self)
 
-    # only when use labeled-crf-loss
-    # default: arc prob = sum prob of all labels
-    # if setting this to 0, arc prob = max prob among all labels
-    @property
-    def max_label_prob_as_arc_prob_when_decode(self):
-        ret = self._conf.getint(
-            'Run', 'max_label_prob_as_arc_prob_when_decode') != 0
-        if ret:
-            assert self.use_labeled_crf_loss
-        return ret
+    def __setstate__(self, state):
+        self.__dict__.update(state)
 
-    @property
-    def use_first_child_score(self):
-        ret = self._conf.getint('Run', 'use_first_child_score') != 0
-        if ret:
-            assert self.use_sib_score
-        return ret
-
-    @property
-    def use_sib_score(self):
-        ret = self._conf.getint('Run', 'use_sib_score') != 0
-        if ret:
-            assert self.use_labeled_crf_loss or self.use_unlabeled_crf_loss
-        return ret
-
-    @property
-    def use_unlabeled_crf_loss(self):
-        return not self.use_labeled_crf_loss and self._conf.getint('Run', 'use_unlabeled_crf_loss') != 0
-
-    @property
-    def sent_batch_size(self):
-        return self._conf.getint('Run', 'sent_batch_size')
-
-    @property
-    def char_batch_sizes(self):
-        return literal_eval(self._conf.get('Run', 'char_batch_sizes'))
-
-    @property
-    def max_bucket_num(self):
-        # negative means not using bucket
-        return self._conf.getint('Run', 'max_bucket_num')
-
-    @property
-    def max_sent_length(self):
-        # negative means not using bucket
-        return self._conf.getint('Run', 'max_sent_length')
-
-    @property
-    def is_train(self):
-        return self._conf.getint('Run', 'is_train') > 0
-
-    @property
-    def is_test(self):
-        return self._conf.getint('Run', 'is_test') > 0
-
-    @property
-    def device(self):
-        return self._conf.get('Run', 'device')
-
-    @property
-    def dict_dir(self):
-        return self._conf.get('Run', 'dict_dir')
-
-    @property
-    def model_dir(self):
-        return self._conf.get('Run', 'model_dir')
-
-    @property
-    def inst_num_max(self):
-        return self._conf.getint('Run', 'inst_num_max')
-
-    @property
-    def model_eval_num(self):
-        return self._conf.getint('Test', 'model_eval_num')
-
-    @property
-    def train_files(self):
-        # use , to split multiple training datasets
-        return self._conf.get('Train', 'train_files').split(',')
-
-    @property
-    def dev_files(self):
-        return self._conf.get('Train', 'dev_files').split(',')
-
-    @property
-    def test_files(self):
-        return self._conf.get('Train', 'test_files').split(',')
-
-    @property
-    def bert_path(self):
-        return self._conf.get('Train', 'bert_path')
-
-    @property
-    def bert_vocab(self):
-        return self._conf.get('Train', 'bert_vocab')
-
-    @property
-    def bert_config(self):
-        return self._conf.get('Train', 'bert_config')
-
-    @property
-    def is_dictionary_exist(self):
-        return self._conf.getint('Train', 'is_dictionary_exist') > 0
-
-    @property
-    def train_max_eval_num(self):
-        return self._conf.getint('Train', 'train_max_eval_num')
-
-    @property
-    def save_model_after_eval_num(self):
-        return self._conf.getint('Train', 'save_model_after_eval_num')
-
-    @property
-    def patience(self):
-        return self._conf.getint('Train', 'patience')
-
-    @property
-    def cutoff_freq(self):
-        return self._conf.getint('Train', 'cutoff_freq')
-
-    @property
-    def n_bert_embed(self):
-        return self._conf.getint('Network', 'n_bert_embed')
-
-    @property
-    def bert_dropout(self):
-        return self._conf.getfloat('Network', 'bert_dropout')
-
-    @property
-    def n_bert_layers(self):
-        return self._conf.getint('Network', 'n_bert_layers')
-
-    @property
-    def n_char_embed(self):
-        return self._conf.getint('Network', 'n_char_embed')
-
-    @property
-    def embed_dropout(self):
-        return self._conf.getfloat('Network', 'embed_dropout')
-
-    @property
-    def n_lstm_hidden(self):
-        return self._conf.getint('Network', 'n_lstm_hidden')
-
-    @property
-    def n_lstm_layers(self):
-        return self._conf.getint('Network', 'n_lstm_layers')
-
-    @property
-    def lstm_dropout(self):
-        return self._conf.getfloat('Network', 'lstm_dropout')
-
-    @property
-    def lr(self):
-        return self._conf.getfloat('Optimizer', 'lr')
-
-    @property
-    def clip(self):
-        return self._conf.getfloat('Optimizer', 'clip')
+    def update(self, kwargs):
+        self.kwargs.update(kwargs)

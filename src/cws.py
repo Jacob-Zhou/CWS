@@ -143,7 +143,7 @@ class CWS(object):
             self._metric.clear()
 
             if best_accuracy < current_fmeasure - 1e-3:
-                if eval_cnt > self._conf.save_model_after_eval_num:
+                if eval_cnt > self._conf.patience:
                     self._model.save_model(self._conf.model_dir,
                                            eval_cnt)
                     self.evaluate(dataset=self._test_datasets[0],
