@@ -13,23 +13,14 @@ from src.metric import Metric
 from src.model import CWSModel
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
+from torch.nn.parallel import data_parallel
 
 
 class CWS(object):
 
     def __init__(self, conf):
         self._conf = conf
-        self._device = torch.device(self._conf.device)
         # self._cpu_device = torch.device('cpu')
-        self._use_cuda, self._cuda_device = ('cuda' == self._device.type,
-                                             self._device.index)
-        if self._use_cuda:
-            # please note that the index is the relative index
-            # in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
-            assert 0 <= self._cuda_device < 8
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(self._cuda_device)
-            # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../main.py ...
-            self._cuda_device = 0
         self.training = False
 
         self._optimizer = None
@@ -45,7 +36,7 @@ class CWS(object):
         self._label_dict = VocabDict('labels')
 
         # transition scores of the labels
-        # make sure the label dict have been sorted
+        # NOTE: make sure the label dict MUST have been sorted
         # [B, E, M, S]
         self._strans = torch.tensor([1., 0., 0., 1.]).log()
         self._etrans = torch.tensor([0., 1., 0., 1.]).log()
@@ -57,7 +48,7 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
-        self._model = CWSModel('ws', conf, self._use_cuda)
+        self._model = CWSModel('ws', conf)
 
     def run(self):
         if self._conf.is_train:
@@ -92,12 +83,11 @@ class CWS(object):
                                    self._conf.model_eval_num)
         print(self._model)
 
-        if self._use_cuda:
-            # self._model.cuda()
-            self._model.to(self._cuda_device)
-            self._strans = self._strans.to(self._cuda_device)
-            self._etrans = self._etrans.to(self._cuda_device)
-            self._trans = self._trans.to(self._cuda_device)
+        if torch.cuda.is_available():
+            self._model.to(self.self._conf.device)
+            self._strans = self._strans.to(self.self._conf.device)
+            self._etrans = self._etrans.to(self.self._conf.device)
+            self._trans = self._trans.to(self.self._conf.device)
 
         if self._conf.is_train:
             assert self._optimizer is None
@@ -132,13 +122,13 @@ class CWS(object):
                     self.train_or_eval_one_batch(aux_batch, True)
                 self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch)
-            self._metric.compute_and_output(self._train_datasets[0],
-                                            eval_cnt)
-            self._metric.clear()
+            for train in self._train_datasets:
+                self._metric.compute_and_output(train, eval_cnt)
 
-            self.evaluate(self._dev_datasets[0])
-            self._metric.compute_and_output(self._dev_datasets[0],
-                                            eval_cnt)
+            for dev in self._dev_datasets:
+                self._metric.clear()
+                self.evaluate(dev)
+                self._metric.compute_and_output(dev, eval_cnt)
             current_fmeasure = self._metric.fscore
             self._metric.clear()
 
@@ -146,11 +136,10 @@ class CWS(object):
                 if eval_cnt > self._conf.patience:
                     self._model.save_model(self._conf.model_dir,
                                            eval_cnt)
-                    self.evaluate(dataset=self._test_datasets[0],
-                                  output_filename=None)
-                    self._metric.compute_and_output(self._test_datasets[0],
-                                                    eval_cnt)
-                    self._metric.clear()
+                    for test in self._test_datasets:
+                        self._metric.clear()
+                        self.evaluate(test)
+                        self._metric.compute_and_output(test, eval_cnt)
 
                 best_eval_cnt = eval_cnt
                 best_accuracy = current_fmeasure
@@ -166,7 +155,10 @@ class CWS(object):
         subwords, chars, bichars, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        out = self._model(subwords, chars, bichars, aux)
+        if torch.cuda.device_count() > 1:
+            out = data_parallel(self._model, (subwords, chars, bichars, aux))
+        else:
+            out = self._model(subwords, chars, bichars, aux)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)

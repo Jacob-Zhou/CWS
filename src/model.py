@@ -11,11 +11,10 @@ from .modules import BertEmbedding
 
 class CWSModel(nn.Module):
 
-    def __init__(self, name, conf, use_cuda):
+    def __init__(self, name, conf):
         super(CWSModel, self).__init__()
 
         self._conf = conf
-        self._use_cuda = use_cuda
         self._name = name
 
         self.emb_char = None
