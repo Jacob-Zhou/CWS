@@ -182,7 +182,7 @@ class CWS(object):
     def evaluate(self, dataset, output_filename=None):
         self.set_training_mode(training=False)
         for batch in dataset:
-            self.train_or_eval_one_batch(batch)
+            self.train_or_eval_one_batch(batch, dataset.aux)
 
         if output_filename is not None:
             with open(output_filename, 'w', encoding='utf-8') as out_file:
@@ -285,6 +285,9 @@ class CWS(object):
                     shuffle=shuffle)
             for i, name in enumerate(filenames)
         ]
+        for dataset in datasets:
+            dataset.aux = True
+        datasets[0].aux = False
 
         return datasets
 
