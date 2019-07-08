@@ -27,8 +27,10 @@ class Bucketing(object):
     A simple bucketing method.
     The goals are:
         The resulting bucket number can be different from the given k
-        Different buckets contain roughly the same number of words (no less than 0.6 of the average)
-        The gap between the max and min sentence lengths are as small as possible (7 can be threshold)
+        Different buckets contain roughly the same number
+            of words (no less than 0.6 of the average)
+        The gap between the max and min sentence lengths are
+            as small as possible (7 can be threshold)
     """
 
     # =============================================================
@@ -36,15 +38,15 @@ class Bucketing(object):
         """"""
         # Error checking
         if len(len_cntr) < assumed_bucket_num:
-            raise ValueError('Trying to sort %d data points into %d buckets' % (
-                len(len_cntr), assumed_bucket_num))
+            raise ValueError('Trying to sort %d data points into %d buckets' %
+                             (len(len_cntr), assumed_bucket_num))
 
         # from large to small
         uniq_lengths = sorted(len_cntr.keys(), reverse=True)
         total_token_num = 0
         for length in uniq_lengths:
             total_token_num += length * len_cntr[length]
-        average_token_num = math.ceil(total_token_num / assumed_bucket_num)
+        avg_token_num = math.ceil(total_token_num / assumed_bucket_num)
         '''
         lengths = []
         for length, count in len_cntr.items():
@@ -55,21 +57,21 @@ class Bucketing(object):
 
         self._max_len_in_buckets = []
         uniq_len_num = len(uniq_lengths)
-        total_token_num_this_bucket = 0
+        bucket_total_token_num = 0
         for i_len in range(uniq_len_num):
             length = uniq_lengths[i_len]
             i_bucket = len(self._max_len_in_buckets) - 1
-            if -1 == i_bucket or total_token_num_this_bucket >= average_token_num or \
-                    (total_token_num_this_bucket >= 0.6 * average_token_num and
+            if -1 == i_bucket or bucket_total_token_num >= avg_token_num or \
+                    (bucket_total_token_num >= 0.6 * avg_token_num and
                      self._max_len_in_buckets[i_bucket] - uniq_lengths[i_len] > 7):
                 self._max_len_in_buckets.append(length)
-                total_token_num_this_bucket = 0
+                bucket_total_token_num = 0
             else:
                 pass
-            total_token_num_this_bucket += length * len_cntr[length]
+            bucket_total_token_num += length * len_cntr[length]
 
             # if the last bucket is too small, merge it into the second-last
-            if i_len == (uniq_len_num - 1) and total_token_num_this_bucket < 0.4 * average_token_num:
+            if i_len == (uniq_len_num - 1) and bucket_total_token_num < 0.4 * avg_token_num:
                 assert 0 < i_bucket
                 self._max_len_in_buckets.pop()
 
