@@ -11,8 +11,10 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--exp-des',
                            default='description of this experiment')
-    argparser.add_argument('--config',
-                           default='config.ini')
+    argparser.add_argument('--config', default='config.ini',
+                           help='config file')
+    argparser.add_argument('--path', '-p', default='exp',
+                           help='path to saved files')
     argparser.add_argument('--device', '-d', default='-1',
                            help='ID of GPU to use')
     argparser.add_argument('--seed', '-s', default=1, type=int,
@@ -35,6 +37,9 @@ if __name__ == '__main__':
     conf = Config(args.config)
     conf.update(vars(args))
     print(conf)
+    if not os.path.exists(conf.path):
+        os.mkdir(conf.path)
+    torch.save(conf, os.path.join(conf.path, 'config'))
 
     cws = CWS(conf)
     cws.run()

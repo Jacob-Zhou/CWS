@@ -58,11 +58,11 @@ class CWS(object):
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 self.create_dictionaries(self._train_datasets)
-                self.save_dictionaries(self._conf.dict_dir)
-                self.load_dictionaries(self._conf.dict_dir)
+                self.save_dictionaries(self._conf.path)
+                self.load_dictionaries(self._conf.path)
 
                 return
-        self.load_dictionaries(self._conf.dict_dir)
+        self.load_dictionaries(self._conf.path)
         if self._conf.is_train:
             self._dev_datasets = self.load_datasets(self._conf,
                                                     self._conf.dev_files)
@@ -79,7 +79,7 @@ class CWS(object):
                                 self._bichar_dict,
                                 self._label_dict)
         if not self._conf.is_train:
-            self._model.load_model(self._conf.model_dir,
+            self._model.load_model(self._conf.path,
                                    self._conf.model_eval_num)
         print(self._model)
 
@@ -122,8 +122,7 @@ class CWS(object):
                     self.train_or_eval_one_batch(aux_batch, True)
                 self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch)
-            for train in self._train_datasets:
-                self._metric.compute_and_output(train, eval_cnt)
+            self._metric.compute_and_output(self._train_datasets[0], eval_cnt)
 
             for dev in self._dev_datasets:
                 self._metric.clear()
@@ -134,7 +133,7 @@ class CWS(object):
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.patience:
-                    self._model.save_model(self._conf.model_dir,
+                    self._model.save_model(self._conf.path,
                                            eval_cnt)
                     for test in self._test_datasets:
                         self._metric.clear()
