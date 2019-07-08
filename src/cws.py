@@ -7,29 +7,19 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from pytorch_pretrained_bert.tokenization import BertTokenizer
 from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
+from torch.nn.parallel import data_parallel
 
 
 class CWS(object):
 
     def __init__(self, conf):
         self._conf = conf
-        self._device = torch.device(self._conf.device)
         # self._cpu_device = torch.device('cpu')
-        self._use_cuda, self._cuda_device = ('cuda' == self._device.type,
-                                             self._device.index)
-        if self._use_cuda:
-            # please note that the index is the relative index
-            # in CUDA_VISIBLE_DEVICES=6,7 (0, 1)
-            assert 0 <= self._cuda_device < 8
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(self._cuda_device)
-            # an alternative way: CUDA_VISIBLE_DEVICE=6 python ../main.py ...
-            self._cuda_device = 0
         self.training = False
 
         self._optimizer = None
@@ -38,14 +28,13 @@ class CWS(object):
         self._dev_datasets = []
         self._test_datasets = []
 
-        self._tokenizer = BertTokenizer.from_pretrained(self._conf.bert_vocab)
         self._char_dict = VocabDict('chars')
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
         self._label_dict = VocabDict('labels')
 
         # transition scores of the labels
-        # make sure the label dict have been sorted
+        # NOTE: make sure the label dict MUST have been sorted
         # [B, E, M, S]
         self._strans = torch.tensor([1., 0., 0., 1.]).log()
         self._etrans = torch.tensor([0., 1., 0., 1.]).log()
@@ -57,7 +46,7 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
-        self._model = CWSModel('ws', conf, self._use_cuda)
+        self._model = CWSModel('ws', conf)
 
     def run(self):
         if self._conf.is_train:
@@ -67,11 +56,11 @@ class CWS(object):
             if not self._conf.is_dictionary_exist:
                 print("create dict...")
                 self.create_dictionaries(self._train_datasets)
-                self.save_dictionaries(self._conf.dict_dir)
-                self.load_dictionaries(self._conf.dict_dir)
+                self.save_dictionaries(self._conf.path)
+                self.load_dictionaries(self._conf.path)
 
                 return
-        self.load_dictionaries(self._conf.dict_dir)
+        self.load_dictionaries(self._conf.path)
         if self._conf.is_train:
             self._dev_datasets = self.load_datasets(self._conf,
                                                     self._conf.dev_files)
@@ -88,16 +77,15 @@ class CWS(object):
                                 self._bichar_dict,
                                 self._label_dict)
         if not self._conf.is_train:
-            self._model.load_model(self._conf.model_dir,
+            self._model.load_model(self._conf.path,
                                    self._conf.model_eval_num)
         print(self._model)
 
-        if self._use_cuda:
-            # self._model.cuda()
-            self._model.to(self._cuda_device)
-            self._strans = self._strans.to(self._cuda_device)
-            self._etrans = self._etrans.to(self._cuda_device)
-            self._trans = self._trans.to(self._cuda_device)
+        if torch.cuda.is_available():
+            self._model.to(self._conf.device)
+            self._strans = self._strans.to(self._conf.device)
+            self._etrans = self._etrans.to(self._conf.device)
+            self._trans = self._trans.to(self._conf.device)
 
         if self._conf.is_train:
             assert self._optimizer is None
@@ -132,25 +120,23 @@ class CWS(object):
                     self.train_or_eval_one_batch(aux_batch, True)
                 self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch)
-            self._metric.compute_and_output(self._train_datasets[0],
-                                            eval_cnt)
-            self._metric.clear()
+            self._metric.compute_and_output(self._train_datasets[0], eval_cnt)
 
-            self.evaluate(self._dev_datasets[0])
-            self._metric.compute_and_output(self._dev_datasets[0],
-                                            eval_cnt)
+            for dev in self._dev_datasets:
+                self._metric.clear()
+                self.evaluate(dev)
+                self._metric.compute_and_output(dev, eval_cnt)
             current_fmeasure = self._metric.fscore
             self._metric.clear()
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.patience:
-                    self._model.save_model(self._conf.model_dir,
+                    self._model.save_model(self._conf.path,
                                            eval_cnt)
-                    self.evaluate(dataset=self._test_datasets[0],
-                                  output_filename=None)
-                    self._metric.compute_and_output(self._test_datasets[0],
-                                                    eval_cnt)
-                    self._metric.clear()
+                    for test in self._test_datasets:
+                        self._metric.clear()
+                        self.evaluate(test)
+                        self._metric.compute_and_output(test, eval_cnt)
 
                 best_eval_cnt = eval_cnt
                 best_accuracy = current_fmeasure
@@ -163,10 +149,13 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts, aux=False):
         print('.', end='')
-        subwords, chars, bichars, labels = self.compose_batch(insts)
+        chars, bichars, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        out = self._model(subwords, chars, bichars, aux)
+        if torch.cuda.device_count() > 1:
+            out = data_parallel(self._model, (chars, bichars, aux))
+        else:
+            out = self._model(chars, bichars, aux)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
@@ -239,12 +228,6 @@ class CWS(object):
     def numericalize_all_instances(self, datasets):
         for dataset in datasets:
             for inst in dataset.all_inst:
-                # for chinese, no extra operations is required
-                inst.subwords_i = torch.tensor(
-                    self._tokenizer.convert_tokens_to_ids(
-                        ['[CLS]']+[i if i in self._tokenizer.vocab else '[UNK]'
-                                   for i in inst.chars_s]+['[SEP]'])
-                )
                 inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                              for i in inst.chars_s])
                 inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
@@ -326,14 +309,12 @@ class CWS(object):
         self._model.train(training)
 
     def compose_batch(self, insts):
-        subwords = pad_sequence([inst.subwords_i for inst in insts], True)
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
-            subwords = subwords.cuda()
             chars = chars.cuda()
             bichars = bichars.cuda()
             labels = labels.cuda()
-        return subwords, chars, bichars, labels
+        return chars, bichars, labels
