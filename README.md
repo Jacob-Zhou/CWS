@@ -40,15 +40,15 @@ $ git checkout mtl-bert
 模型的训练和测试方式如下：
 
 ```sh
-# device: GPU设备号，可以多GPU，可以不指定
+# device: GPU设备号，可以不指定
 # config: 超参文件
 
 # Preprocess
-$ nohup python -u main.py --device=0,1,2,3 --config=config.ini --is-train > results/log.create-dict 2>&1 &
+$ nohup python -u main.py --device=0 --config=config.ini --is-train > results/log.create-dict 2>&1 &
 
 # Train
-$ nohup python -u main.py --device=0,1,2,3 --config=config.ini --is-dictionary-exist --is-train > results/log.mtl.bert 2>&1 &
+$ nohup python -u main.py --device=0 --config=config.ini --is-dictionary-exist --is-train > results/log.mtl.bert 2>&1 &
 
 # Test
-$ nohup python -u main.py --device=0,1,2,3 --config=config.ini --is-test --model-eval-num $num > log.test-$num 2>&1
+$ nohup python -u main.py --device=0 --config=config.ini --is-test --model-eval-num $num > log.test-$num 2>&1
 ```
