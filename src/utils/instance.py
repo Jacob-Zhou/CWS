@@ -33,12 +33,10 @@ class Instance(object):
         return lines
 
     def write(self, out_file):
-        lines = Instance.compose_sent(self.chars_s,
-                                      self.bichars_s,
-                                      self.labels_s_pred)
-        for line in lines:
-            out_file.write(line)
-        out_file.write('\n')
+        slices = [slice(*span)
+                  for span in sorted(Instance.get_spans(self.labels_s_pred))]
+        words = [''.join(self.chars_s[i]) for i in slices]
+        out_file.write(' '.join(words) + '\n')
 
     def decompose_sent(self, lines):
         for (i, line) in enumerate(lines):
