@@ -128,8 +128,8 @@ class CWS(object):
                 self._metric.clear()
                 self.evaluate(dev)
                 self._metric.compute_and_output(dev, eval_cnt)
-            current_fmeasure = self._metric.fscore
-            self._metric.clear()
+                if not dev.aux:
+                    current_fmeasure = self._metric.fscore
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.patience:
