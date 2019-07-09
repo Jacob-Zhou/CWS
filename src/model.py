@@ -45,7 +45,7 @@ class CWSModel(nn.Module):
         self.ffns = nn.ModuleList([
             nn.Linear(in_features=self._conf.n_lstm_hidden*2,
                       out_features=len(label_dict))
-            for _ in range(self._conf.train_files)
+            for _ in range(len(self._conf.train_files))
         ])
         self.criterion = nn.CrossEntropyLoss()
         print('init models done')
