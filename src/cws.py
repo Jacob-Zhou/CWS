@@ -12,7 +12,6 @@ from src.metric import Metric
 from src.model import CWSModel
 from src.utils import Dataset, VocabDict
 from torch.nn.utils.rnn import pad_sequence
-from torch.nn.parallel import data_parallel
 
 
 class CWS(object):
@@ -95,10 +94,12 @@ class CWS(object):
             return
 
         assert self._conf.is_test
-        for dataset in self._test_datasets:
-            self.evaluate(dataset=dataset,
-                          output_filename=dataset.filename_short + '.out')
-            self._metric.compute_and_output(self._test_datasets[0],
+        dataset = self._test_datasets[0]
+        for i in range(len(self._conf.train_files)):
+            self._test_datasets[0].index = i
+            self.evaluate(dataset,
+                          dataset.filename_short + '.out.' + str(i))
+            self._metric.compute_and_output(dataset,
                                             self._conf.model_eval_num)
             self._metric.clear()
 
@@ -107,26 +108,25 @@ class CWS(object):
         self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
-            aux_datasets = self._train_datasets[1:]
-            aux_iters = [iter(dataset) for dataset in aux_datasets]
-            for batch in self._train_datasets[0]:
-                for i, aux_iter in enumerate(aux_iters):
-                    try:
-                        aux_batch = next(aux_iter)
-                    except StopIteration:
-                        aux_iters[i] = iter(aux_datasets[i])
-                        aux_batch = next(aux_iters[i])
-                    self._optimizer.zero_grad()
-                    self.train_or_eval_one_batch(aux_batch, True)
+            iters = [iter(dataset) for dataset in self._train_datasets]
+            for i in range(len(iters)):
+                try:
+                    batch = next(iters[i])
+                except StopIteration:
+                    iters[i] = iter(self._train_datasets[i])
+                    if i == 0:
+                        break
+                    else:
+                        batch = next(iters[i])
                 self._optimizer.zero_grad()
-                self.train_or_eval_one_batch(batch)
+                self.train_or_eval_one_batch(batch, i)
             self._metric.compute_and_output(self._train_datasets[0], eval_cnt)
 
             for dev in self._dev_datasets:
                 self._metric.clear()
                 self.evaluate(dev)
                 self._metric.compute_and_output(dev, eval_cnt)
-                if not dev.aux:
+                if dev.index == 0:
                     current_fmeasure = self._metric.fscore
 
             if best_accuracy < current_fmeasure - 1e-3:
@@ -147,15 +147,12 @@ class CWS(object):
         print("The best fscore of dev is %.3f at epoch %d" %
               (best_accuracy, best_eval_cnt))
 
-    def train_or_eval_one_batch(self, insts, aux=False):
+    def train_or_eval_one_batch(self, insts, index=0):
         print('.', end='')
         chars, bichars, labels = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        if torch.cuda.device_count() > 1:
-            out = data_parallel(self._model, (chars, bichars, aux))
-        else:
-            out = self._model(chars, bichars, aux)
+        out = self._model(chars, bichars, index)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
@@ -182,7 +179,7 @@ class CWS(object):
     def evaluate(self, dataset, output_filename=None):
         self.set_training_mode(training=False)
         for batch in dataset:
-            self.train_or_eval_one_batch(batch, dataset.aux)
+            self.train_or_eval_one_batch(batch, dataset.index)
 
         if output_filename is not None:
             with open(output_filename, 'w', encoding='utf-8') as out_file:
@@ -285,9 +282,8 @@ class CWS(object):
                     shuffle=shuffle)
             for i, name in enumerate(filenames)
         ]
-        for dataset in datasets:
-            dataset.aux = True
-        datasets[0].aux = False
+        for i, dataset in enumerate(datasets):
+            dataset.index = i
 
         return datasets
 
