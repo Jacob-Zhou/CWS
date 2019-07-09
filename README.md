@@ -18,7 +18,7 @@ $ pip install -r requirements.txt
 
 ## 运行
 
-模型通过Multi-Task Learning (MTL)的方式训练ctb和pku两个规范的预料，分别为12w句和120w句  
+模型通过Multi-Task Learning (MTL)的方式训练ctb和pku两个规范的语料，分别为12w句和120w句  
 
 两个语料通过corpus-weighting的方式轮流迭代，batch_size大小之比为1:10
 
@@ -42,13 +42,14 @@ $ git checkout mtl-bert
 ```sh
 # device: GPU设备号，可以不指定
 # config: 超参文件
+# path: 存放字典模型等文件的路径
 
 # Preprocess
-$ nohup python -u main.py --device=0 --config=config.ini --is-train > results/log.create-dict 2>&1 &
+$ nohup python -u main.py --device=0 --config=config.ini --path=exp/ctb9-mtl-bert --is-train > results/log.create-dict 2>&1 &
 
 # Train
-$ nohup python -u main.py --device=0 --config=config.ini --is-dictionary-exist --is-train > results/log.mtl.bert 2>&1 &
+$ nohup python -u main.py --device=0 --config=config.ini --path=exp/ctb9-mtl-bert --is-dictionary-exist --is-train > results/log.mtl.bert 2>&1 &
 
 # Test
-$ nohup python -u main.py --device=0 --config=config.ini --is-test --model-eval-num $num > log.test-$num 2>&1
+$ nohup python -u main.py --device=0 --config=config.ini --path=exp/ctb9-mtl-bert --is-test > log.test 2>&1
 ```
