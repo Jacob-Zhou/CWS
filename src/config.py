@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
 from ast import literal_eval
 from configparser import ConfigParser
 
