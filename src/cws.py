@@ -111,32 +111,32 @@ class CWS(object):
             iters = [None] + [iter(aux) for aux in self._train_datasets[1:]]
             for batch in self._train_datasets[0]:
                 for i in range(1, len(iters)):
+                    self._optimizer.zero_grad()
                     try:
-                        batch = next(iters[i])
+                        self.train_or_eval_one_batch(next(iters[i]), i)
                     except StopIteration:
                         iters[i] = iter(self._train_datasets[i])
-                        batch = next(iters[i])
-                    self._optimizer.zero_grad()
-                    self.train_or_eval_one_batch(batch, i)
+                        self.train_or_eval_one_batch(next(iters[i]), i)
                 self._optimizer.zero_grad()
                 self.train_or_eval_one_batch(batch, 0)
             self._metric.compute_and_output(self._train_datasets[0], eval_cnt)
+            self._metric.clear()
 
             for dev in self._dev_datasets:
-                self._metric.clear()
                 self.evaluate(dev)
                 self._metric.compute_and_output(dev, eval_cnt)
                 if dev.index == 0:
                     current_fmeasure = self._metric.fscore
+                self._metric.clear()
 
             if best_accuracy < current_fmeasure - 1e-3:
                 if eval_cnt > self._conf.patience:
                     self._model.save_model(self._conf.path,
                                            eval_cnt)
                     for test in self._test_datasets:
-                        self._metric.clear()
                         self.evaluate(test)
                         self._metric.compute_and_output(test, eval_cnt)
+                        self._metric.clear()
 
                 best_eval_cnt = eval_cnt
                 best_accuracy = current_fmeasure
