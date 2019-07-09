@@ -111,18 +111,18 @@ class CWS(object):
         self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
             self.set_training_mode(training=True)
-            iters = [iter(dataset) for dataset in self._train_datasets]
-            for i in range(len(iters)):
-                try:
-                    batch = next(iters[i])
-                except StopIteration:
-                    iters[i] = iter(self._train_datasets[i])
-                    if i == 0:
-                        break
-                    else:
+            iters = [None] + [iter(aux) for aux in self._train_datasets[1:]]
+            for batch in self._train_datasets[0]:
+                for i in range(1, len(iters)):
+                    try:
                         batch = next(iters[i])
+                    except StopIteration:
+                        iters[i] = iter(self._train_datasets[i])
+                        batch = next(iters[i])
+                    self._optimizer.zero_grad()
+                    self.train_or_eval_one_batch(batch, i)
                 self._optimizer.zero_grad()
-                self.train_or_eval_one_batch(batch, i)
+                self.train_or_eval_one_batch(batch, 0)
             self._metric.compute_and_output(self._train_datasets[0], eval_cnt)
 
             for dev in self._dev_datasets:
