@@ -41,13 +41,14 @@ $ git checkout mtl-bert
 ```sh
 # device: GPU设备号，可以不指定
 # config: 超参文件
+# path: 存放字典模型等文件的路径
 
 # Preprocess
-$ nohup python -u main.py --device=0 --config=config.ini --is-train > results/log.create-dict 2>&1 &
+$ nohup python -u main.py --device=0 --config=config.ini --path=exp/ctb9-mtl --is-train > results/log.create-dict 2>&1 &
 
 # Train
-$ nohup python -u main.py --device=0 --config=config.ini --is-dictionary-exist --is-train > results/log.mtl.bert 2>&1 &
+$ nohup python -u main.py --device=0 --config=config.ini --path=exp/ctb9-mtl --is-dictionary-exist --is-train > results/log.mtl 2>&1 &
 
 # Test
-$ nohup python -u main.py --device=0 --config=config.ini --is-test --model-eval-num $num > log.test-$num 2>&1
+$ nohup python -u main.py --device=0 --config=config.ini --path=exp/ctb9-mtl --is-test > log.test 2>&1
 ```
