@@ -7,6 +7,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from src.common import pad, unk
 from src.metric import Metric
@@ -34,6 +35,7 @@ class CWS(object):
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
         self._label_dict = VocabDict('labels')
+        self._extra_dict = self.load_extra_dict(self._conf.extra_dictionarys)
 
         # transition scores of the labels
         # NOTE: make sure the label dict MUST have been sorted
@@ -88,6 +90,10 @@ class CWS(object):
             self._strans = self._strans.to(self._conf.device)
             self._etrans = self._etrans.to(self._conf.device)
             self._trans = self._trans.to(self._conf.device)
+
+        # non-sense hack (very bad)
+        for test in self._test_datasets:
+            test.index = 0
 
         if self._conf.is_train:
             assert self._optimizer is None
@@ -152,10 +158,10 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts, index=0):
         print('.', end='')
-        subwords, chars, bichars, labels = self.compose_batch(insts)
+        subwords, chars, bichars, labels, dict_feats = self.compose_batch(insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
-        out = self._model(subwords, chars, bichars, index)
+        out = self._model(subwords, chars, bichars, dict_feats, index)
         time2 = time.time()
 
         loss = self._model.get_loss(out, labels, mask)
@@ -234,12 +240,68 @@ class CWS(object):
                         ['[CLS]']+[i if i in self._tokenizer.vocab else '[UNK]'
                                    for i in inst.chars_s]+['[SEP]'])
                 )
+                inst.dict_feats_i = torch.tensor(self.extract_dict_features(inst.chars_s))
                 inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                              for i in inst.chars_s])
                 inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
                                                for i in inst.bichars_s])
                 inst.labels_i = torch.tensor([self._label_dict.get_id(i)
                                               for i in inst.labels_s])
+
+    def extract_dict_features(self, chars):
+        max_len = self._conf.max_word_len
+        min_len = self._conf.min_word_len
+        # result = np.zeros((len(chars), max_len - min_len + 1), dtype=int)
+        # for i in range(len(chars)):
+        #     # fw
+        #     for l in range(min_len, max_len + 1):
+        #         if (i + l - 1) >= len(chars):
+        #             continue
+        #         word = ''.join(chars[i: i + l])
+        #         if word in self._extra_dict:
+        #             result[i][l - min_len] |= 1
+        #             result[i + l - 1][l - min_len] |= 4
+        #             for mid in range(i + 1, i + l - 1):
+        #                 result[mid][l - min_len] |= 2
+        # return result
+        result = []
+        for i in range(len(chars)):
+            # fw
+            word_tag = []
+            for l in range(max_len - 1, min_len - 2, -1):
+                if (i - l) < 0:
+                    word_tag.append(0)
+                    continue
+                word = ''.join(chars[i - l:i + 1])
+                if word in self._extra_dict:
+                    word_tag.append(self._extra_dict[word])
+                else:
+                    word_tag.append(0)
+            # bw
+            for l in range(min_len - 1, max_len):
+                if (i + l) >= len(chars):
+                    word_tag.append(0)
+                    continue
+                word = ''.join(chars[i:i + l + 1])
+                if word in self._extra_dict:
+                    word_tag.append(self._extra_dict[word])
+                else:
+                    word_tag.append(0)
+            result.append(word_tag)
+        return result
+    
+    def load_extra_dict(self, dict_files):
+        dictionary = dict()
+        for dictionary_file in dict_files:
+            if not str.isspace(dictionary_file):
+                with open(dictionary_file, mode='r', encoding='utf-8') as reader:
+                    for line in reader:
+                        token = line.strip().split(" ")
+                        if len(token) == 2:
+                            dictionary[token[0]] = token[1]
+                        else:
+                            dictionary[token[0]] = 1
+        return dictionary
 
     def create_dictionaries(self, datasets):
         for dataset in datasets:
@@ -318,13 +380,15 @@ class CWS(object):
 
     def compose_batch(self, insts):
         subwords = pad_sequence([inst.subwords_i for inst in insts], True)
+        dict_feats = pad_sequence([inst.dict_feats_i for inst in insts], True)
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             subwords = subwords.cuda()
+            dict_feats= dict_feats.cuda()
             chars = chars.cuda()
             bichars = bichars.cuda()
             labels = labels.cuda()
-        return subwords, chars, bichars, labels
+        return subwords, chars, bichars, labels, dict_feats

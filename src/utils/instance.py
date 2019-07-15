@@ -12,6 +12,7 @@ class Instance(object):
         self.bichars_s = [''] * n
         self.labels_s = [''] * n
         self.labels_s_pred = [''] * n
+        # torch 向量
         self.chars_i = torch.zeros(n).long()
         self.bichars_i = torch.zeros(n).long()
         self.labels_i = torch.zeros(n).long()
