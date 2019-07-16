@@ -44,12 +44,12 @@ class CWSModel(nn.Module):
         else:
             n_bert_embed = 0
 
-        # self.emb_dict = nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed)
+        self.emb_dict = nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed)
 
         self.embed_dropout = nn.Dropout(self._conf.embed_dropout)
 
         # another hack
-        self._conf.n_dict_embed = 2
+        # self._conf.n_dict_embed = 2
 
         self.dict_weight = nn.Linear(in_features=self._conf.n_dict_embed * (self._conf.max_word_len - self._conf.min_word_len + 1),
                       out_features=self._conf.n_char_embed*2+n_bert_embed)
@@ -86,8 +86,8 @@ class CWSModel(nn.Module):
         else:
             x = self.embed_dropout(torch.cat((emb_char, emb_bichar), -1))
 
-        # emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
-        emb_dict = dict_feats.float()
+        emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
+        # emb_dict = dict_feats.float()
 
         attn_w = self.dict_weight(emb_dict) # (B, L, len(x))
         attn_b = self.dict_bias(emb_dict) # (B, L, len(x))

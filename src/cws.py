@@ -251,44 +251,46 @@ class CWS(object):
     def extract_dict_features(self, chars):
         max_len = self._conf.max_word_len
         min_len = self._conf.min_word_len
-        # result = np.zeros((len(chars), max_len - min_len + 1), dtype=int)
-        # for i in range(len(chars)):
-        #     # fw
-        #     for l in range(min_len, max_len + 1):
-        #         if (i + l - 1) >= len(chars):
-        #             continue
-        #         word = ''.join(chars[i: i + l])
-        #         if word in self._extra_dict:
-        #             result[i][l - min_len] |= 1
-        #             result[i + l - 1][l - min_len] |= 4
-        #             for mid in range(i + 1, i + l - 1):
-        #                 result[mid][l - min_len] |= 2
-        # return result
-        result = []
+        result = np.zeros((len(chars), max_len - min_len + 1), dtype=int)
         for i in range(len(chars)):
             # fw
-            word_tag = []
-            for l in range(max_len - 1, min_len - 2, -1):
-                if (i - l) < 0:
-                    word_tag.append(0)
+            for l in range(min_len, max_len + 1):
+                if (i + l - 1) >= len(chars):
                     continue
-                word = ''.join(chars[i - l:i + 1])
+                word = ''.join(chars[i: i + l])
                 if word in self._extra_dict:
-                    word_tag.append(self._extra_dict[word])
-                else:
-                    word_tag.append(0)
-            # bw
-            for l in range(min_len - 1, max_len):
-                if (i + l) >= len(chars):
-                    word_tag.append(0)
-                    continue
-                word = ''.join(chars[i:i + l + 1])
-                if word in self._extra_dict:
-                    word_tag.append(self._extra_dict[word])
-                else:
-                    word_tag.append(0)
-            result.append(word_tag)
+                    result[i][l - min_len] |= 1
+                    result[i + l - 1][l - min_len] |= 4
+                    for mid in range(i + 1, i + l - 1):
+                        result[mid][l - min_len] |= 2
         return result
+
+        # AAAI-18 的词典特征
+        # result = []
+        # for i in range(len(chars)):
+        #     # fw
+        #     word_tag = []
+        #     for l in range(max_len - 1, min_len - 2, -1):
+        #         if (i - l) < 0:
+        #             word_tag.append(0)
+        #             continue
+        #         word = ''.join(chars[i - l:i + 1])
+        #         if word in self._extra_dict:
+        #             word_tag.append(self._extra_dict[word])
+        #         else:
+        #             word_tag.append(0)
+        #     # bw
+        #     for l in range(min_len - 1, max_len):
+        #         if (i + l) >= len(chars):
+        #             word_tag.append(0)
+        #             continue
+        #         word = ''.join(chars[i:i + l + 1])
+        #         if word in self._extra_dict:
+        #             word_tag.append(self._extra_dict[word])
+        #         else:
+        #             word_tag.append(0)
+        #     result.append(word_tag)
+        # return result
     
     def load_extra_dict(self, dict_files):
         dictionary = dict()
