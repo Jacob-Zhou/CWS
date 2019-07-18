@@ -407,7 +407,7 @@ class CWS(object):
         if torch.cuda.is_available():
             subwords = subwords.cuda()
             for dict_k in range(len(dict_feats)):
-                dict_feats= dict_feats[dict_k].cuda()
+                dict_feats[dict_k]= dict_feats[dict_k].cuda()
             chars = chars.cuda()
             bichars = bichars.cuda()
             labels = labels.cuda()

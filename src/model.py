@@ -45,10 +45,10 @@ class CWSModel(nn.Module):
         else:
             n_bert_embed = 0
 
-        if extra_dicts:
-            self.emb_dict = [None] * len(extra_dicts)
-        for dict_k in range(len(extra_dicts)):
-            self.emb_dict[dict_k] = nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed[dict_k])
+        self.emb_dict = nn.ModuleList([
+            nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed[dict_k])
+            for dict_k in range(len(extra_dicts))
+        ])
 
         self.embed_dropout = nn.Dropout(self._conf.embed_dropout)
 
@@ -94,7 +94,8 @@ class CWSModel(nn.Module):
 
         emb_dict = [None] * len(self.emb_dict)
         for i, emb_dict_layer in enumerate(self.emb_dict):
-            emb_dict[i] = emb_dict_layer(dict_feats[i]).view((batch_size, seq_len, -1))
+            emb_this = emb_dict_layer(dict_feats[i])
+            emb_dict[i] = emb_this.view((batch_size, seq_len, -1))
         emb_dict = torch.cat(tuple(emb_dict), -1)
         # emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
         # emb_dict = dict_feats.float()
