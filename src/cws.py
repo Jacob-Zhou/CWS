@@ -35,7 +35,10 @@ class CWS(object):
         self._bichar_dict = VocabDict('bichars')
         # there may be more than one label dictionaries
         self._label_dict = VocabDict('labels')
-        self._extra_dict = self.load_extra_dict(self._conf.extra_dictionarys)
+        self._extra_dicts = {}
+        self._extra_dicts["train"] = self.load_extra_dicts(self._conf.train_extra_dictionarys)
+        self._extra_dicts["dev"] = self.load_extra_dicts(self._conf.dev_extra_dictionarys)
+        self._extra_dicts["test"] = self.load_extra_dicts(self._conf.test_extra_dictionarys)
 
         # transition scores of the labels
         # NOTE: make sure the label dict MUST have been sorted
@@ -73,13 +76,14 @@ class CWS(object):
                                                  self._conf.test_files)
 
         print('numericalizing all instances in all datasets')
-        self.numericalize_all_instances(self._train_datasets)
-        self.numericalize_all_instances(self._dev_datasets)
-        self.numericalize_all_instances(self._test_datasets)
+        self.numericalize_all_instances(self._train_datasets, type="train")
+        self.numericalize_all_instances(self._dev_datasets, type="dev")
+        self.numericalize_all_instances(self._test_datasets, type="test")
 
         self._model.init_models(self._char_dict,
                                 self._bichar_dict,
-                                self._label_dict)
+                                self._label_dict,
+                                self._extra_dicts["train"])
         if not self._conf.is_train:
             self._model.load_model(self._conf.path,
                                    self._conf.model_eval_num)
@@ -231,7 +235,7 @@ class CWS(object):
             CWS.set_predict_result(inst, pred, self._label_dict)
             CWS.compute_accuracy_one_inst(inst, self._metric, self.training)
 
-    def numericalize_all_instances(self, datasets):
+    def numericalize_all_instances(self, datasets, type="train"):
         for dataset in datasets:
             for inst in dataset.all_inst:
                 # for chinese, no extra operations is required
@@ -240,7 +244,9 @@ class CWS(object):
                         ['[CLS]']+[i if i in self._tokenizer.vocab else '[UNK]'
                                    for i in inst.chars_s]+['[SEP]'])
                 )
-                inst.dict_feats_i = torch.tensor(self.extract_dict_features(inst.chars_s))
+                inst.dict_feats_i = [None] * len(self._extra_dicts[type])
+                for dict_k in range(len(self._extra_dicts[type])):
+                    inst.dict_feats_i[dict_k] = torch.tensor(self.extract_dict_features(inst.chars_s, dict_k, type=type))
                 inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                              for i in inst.chars_s])
                 inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
@@ -248,9 +254,9 @@ class CWS(object):
                 inst.labels_i = torch.tensor([self._label_dict.get_id(i)
                                               for i in inst.labels_s])
 
-    def extract_dict_features(self, chars):
-        max_len = self._conf.max_word_len
-        min_len = self._conf.min_word_len
+    def extract_dict_features(self, chars, dict_k, type="train"):
+        max_len = self._conf.max_word_len[dict_k]
+        min_len = self._conf.min_word_len[dict_k]
         result = np.zeros((len(chars), max_len - min_len + 1), dtype=int)
         for i in range(len(chars)):
             # fw
@@ -258,7 +264,7 @@ class CWS(object):
                 if (i + l - 1) >= len(chars):
                     continue
                 word = ''.join(chars[i: i + l])
-                if word in self._extra_dict:
+                if word in self._extra_dicts[type][dict_k]:
                     result[i][l - min_len] |= 1
                     result[i + l - 1][l - min_len] |= 4
                     for mid in range(i + 1, i + l - 1):
@@ -275,8 +281,8 @@ class CWS(object):
         #             word_tag.append(0)
         #             continue
         #         word = ''.join(chars[i - l:i + 1])
-        #         if word in self._extra_dict:
-        #             word_tag.append(self._extra_dict[word])
+        #         if word in self._extra_dicts:
+        #             word_tag.append(self._extra_dicts[word])
         #         else:
         #             word_tag.append(0)
         #     # bw
@@ -285,25 +291,34 @@ class CWS(object):
         #             word_tag.append(0)
         #             continue
         #         word = ''.join(chars[i:i + l + 1])
-        #         if word in self._extra_dict:
-        #             word_tag.append(self._extra_dict[word])
+        #         if word in self._extra_dicts:
+        #             word_tag.append(self._extra_dicts[word])
         #         else:
         #             word_tag.append(0)
         #     result.append(word_tag)
         # return result
     
-    def load_extra_dict(self, dict_files):
-        dictionary = dict()
+    def load_extra_dicts(self, dict_files):
+
+        def load_extra_dict(sub_dict_files):
+            files = sub_dict_files.split(",")
+            dictionary = dict()
+            for file in files:
+                file = file.strip()
+                if not str.isspace(file):
+                    with open(file, mode='r', encoding='utf-8') as reader:
+                        for line in reader:
+                            token = line.strip().split(" ")
+                            if len(token) == 2:
+                                dictionary[token[0]] = token[1]
+                            else:
+                                dictionary[token[0]] = 1
+            return dictionary
+
+        dicts = []
         for dictionary_file in dict_files:
-            if not str.isspace(dictionary_file):
-                with open(dictionary_file, mode='r', encoding='utf-8') as reader:
-                    for line in reader:
-                        token = line.strip().split(" ")
-                        if len(token) == 2:
-                            dictionary[token[0]] = token[1]
-                        else:
-                            dictionary[token[0]] = 1
-        return dictionary
+            dicts.append(load_extra_dict(dictionary_file))
+        return dicts
 
     def create_dictionaries(self, datasets):
         for dataset in datasets:
@@ -382,14 +397,17 @@ class CWS(object):
 
     def compose_batch(self, insts):
         subwords = pad_sequence([inst.subwords_i for inst in insts], True)
-        dict_feats = pad_sequence([inst.dict_feats_i for inst in insts], True)
+        dict_feats = [None] * len(self._extra_dicts['train'])
+        for dict_k in range(len(dict_feats)):
+            dict_feats[dict_k] = pad_sequence([inst.dict_feats_i[dict_k] for inst in insts], True)
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
             subwords = subwords.cuda()
-            dict_feats= dict_feats.cuda()
+            for dict_k in range(len(dict_feats)):
+                dict_feats= dict_feats[dict_k].cuda()
             chars = chars.cuda()
             bichars = bichars.cuda()
             labels = labels.cuda()

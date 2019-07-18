@@ -20,6 +20,7 @@ class CWSModel(nn.Module):
         self.emb_char = None
         self.emb_bichar = None
         self.emb_bert = None
+        self.emb_dict = None
         self.embed_dropout = None
         self.lstm = None
         self.ffn = None
@@ -30,7 +31,7 @@ class CWSModel(nn.Module):
         return self._name
 
     # create and init all the models needed according to config
-    def init_models(self, char_dict, bichar_dict, label_dict):
+    def init_models(self, char_dict, bichar_dict, label_dict, extra_dicts):
         self.emb_char = nn.Embedding(num_embeddings=len(char_dict),
                                      embedding_dim=self._conf.n_char_embed)
         self.emb_bichar = nn.Embedding(num_embeddings=len(bichar_dict),
@@ -44,18 +45,23 @@ class CWSModel(nn.Module):
         else:
             n_bert_embed = 0
 
-        self.emb_dict = nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed)
+        if extra_dicts:
+            self.emb_dict = [None] * len(extra_dicts)
+        for dict_k in range(len(extra_dicts)):
+            self.emb_dict[dict_k] = nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed[dict_k])
 
         self.embed_dropout = nn.Dropout(self._conf.embed_dropout)
 
         # another hack
         # self._conf.n_dict_embed = 2
 
-        self.dict_weight = nn.Linear(in_features=self._conf.n_dict_embed * (self._conf.max_word_len - self._conf.min_word_len + 1),
-                      out_features=self._conf.n_char_embed*2+n_bert_embed)
+        n_dict_embed = 0
+        for n_e, max_l, min_l in zip(self._conf.n_dict_embed, self._conf.max_word_len, self._conf.min_word_len):
+            n_dict_embed += (max_l - min_l + 1) * n_e
 
-        self.dict_bias = nn.Linear(in_features=self._conf.n_dict_embed * (self._conf.max_word_len - self._conf.min_word_len + 1),
-                      out_features=self._conf.n_char_embed*2+n_bert_embed)
+        self.dict_weight = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
+
+        self.dict_bias = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
 
         self.lstm = nn.LSTM(input_size=self._conf.n_char_embed*2+n_bert_embed,
                             hidden_size=self._conf.n_lstm_hidden,
@@ -86,7 +92,11 @@ class CWSModel(nn.Module):
         else:
             x = self.embed_dropout(torch.cat((emb_char, emb_bichar), -1))
 
-        emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
+        emb_dict = [None] * len(self.emb_dict)
+        for i, emb_dict_layer in enumerate(self.emb_dict):
+            emb_dict[i] = emb_dict_layer(dict_feats[i]).view((batch_size, seq_len, -1))
+        emb_dict = torch.cat(tuple(emb_dict), -1)
+        # emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
         # emb_dict = dict_feats.float()
 
         attn_w = self.dict_weight(emb_dict) # (B, L, len(x))
