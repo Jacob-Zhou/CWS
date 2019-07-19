@@ -36,9 +36,12 @@ class CWS(object):
         # there may be more than one label dictionaries
         self._label_dict = VocabDict('labels')
         self._extra_dicts = {}
-        self._extra_dicts["train"] = self.load_extra_dicts(self._conf.train_extra_dictionarys)
-        self._extra_dicts["dev"] = self.load_extra_dicts(self._conf.dev_extra_dictionarys)
-        self._extra_dicts["test"] = self.load_extra_dicts(self._conf.test_extra_dictionarys)
+        self._extra_dicts["train"] = self.load_extra_dicts(
+            self._conf.train_extra_dictionarys)
+        self._extra_dicts["dev"] = self.load_extra_dicts(
+            self._conf.dev_extra_dictionarys)
+        self._extra_dicts["test"] = self.load_extra_dicts(
+            self._conf.test_extra_dictionarys)
 
         # transition scores of the labels
         # NOTE: make sure the label dict MUST have been sorted
@@ -162,7 +165,8 @@ class CWS(object):
 
     def train_or_eval_one_batch(self, insts, index=0):
         print('.', end='')
-        subwords, chars, bichars, labels, dict_feats = self.compose_batch(insts)
+        subwords, chars, bichars, labels, dict_feats = self.compose_batch(
+            insts)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
         out = self._model(subwords, chars, bichars, dict_feats, index)
@@ -239,14 +243,17 @@ class CWS(object):
         for dataset in datasets:
             for inst in dataset.all_inst:
                 # for chinese, no extra operations is required
-                inst.subwords_i = torch.tensor(
-                    self._tokenizer.convert_tokens_to_ids(
-                        ['[CLS]']+[i if i in self._tokenizer.vocab else '[UNK]'
-                                   for i in inst.chars_s]+['[SEP]'])
-                )
-                inst.dict_feats_i = [None] * len(self._extra_dicts[type])
-                for dict_k in range(len(self._extra_dicts[type])):
-                    inst.dict_feats_i[dict_k] = torch.tensor(self.extract_dict_features(inst.chars_s, dict_k, type=type))
+                if self._conf.with_bert:
+                    inst.subwords_i = torch.tensor(
+                        self._tokenizer.convert_tokens_to_ids(
+                            ['[CLS]']+[i if i in self._tokenizer.vocab else '[UNK]'
+                                       for i in inst.chars_s]+['[SEP]'])
+                    )
+                if self._conf.with_extra_dictionarys:
+                    inst.dict_feats_i = [None] * len(self._extra_dicts[type])
+                    for dict_k in range(len(self._extra_dicts[type])):
+                        inst.dict_feats_i[dict_k] = torch.tensor(
+                            self.extract_dict_features(inst.chars_s, dict_k, type=type))
                 inst.chars_i = torch.tensor([self._char_dict.get_id(i)
                                              for i in inst.chars_s])
                 inst.bichars_i = torch.tensor([self._bichar_dict.get_id(i)
@@ -297,7 +304,7 @@ class CWS(object):
         #             word_tag.append(0)
         #     result.append(word_tag)
         # return result
-    
+
     def load_extra_dicts(self, dict_files):
 
         def load_extra_dict(sub_dict_files):
@@ -396,18 +403,25 @@ class CWS(object):
         self._model.train(training)
 
     def compose_batch(self, insts):
-        subwords = pad_sequence([inst.subwords_i for inst in insts], True)
-        dict_feats = [None] * len(self._extra_dicts['train'])
-        for dict_k in range(len(dict_feats)):
-            dict_feats[dict_k] = pad_sequence([inst.dict_feats_i[dict_k] for inst in insts], True)
+        subwords, dict_feats = None, None
+        if self._conf.with_bert:
+            subwords = pad_sequence([inst.subwords_i for inst in insts], True)
+        if self._conf.with_extra_dictionarys:
+            dict_feats = [None] * len(self._extra_dicts['train'])
+            for dict_k in range(len(dict_feats)):
+                dict_feats[dict_k] = pad_sequence(
+                    [inst.dict_feats_i[dict_k] for inst in insts], True)
         chars = pad_sequence([inst.chars_i for inst in insts], True)
         bichars = pad_sequence([inst.bichars_i for inst in insts], True)
         labels = pad_sequence([inst.labels_i for inst in insts], True)
         # MUST assign for Tensor.cuda() unlike nn.Module
         if torch.cuda.is_available():
-            subwords = subwords.cuda()
-            for dict_k in range(len(dict_feats)):
-                dict_feats[dict_k]= dict_feats[dict_k].cuda()
+            if self._conf.with_bert:
+                subwords = subwords.cuda()
+            if self._conf.with_extra_dictionarys:
+                dict_feats = [dict_feat.cuda() for dict_feat in dict_feats]
+                # for dict_k in range(len(dict_feats)):
+                #     dict_feats[dict_k] = dict_feats[dict_k].cuda()
             chars = chars.cuda()
             bichars = bichars.cuda()
             labels = labels.cuda()

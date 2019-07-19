@@ -21,6 +21,7 @@ class CWSModel(nn.Module):
         self.emb_bichar = None
         self.emb_bert = None
         self.emb_dict = None
+        self.dict_embed_dropout = None
         self.embed_dropout = None
         self.lstm = None
         self.ffn = None
@@ -45,23 +46,27 @@ class CWSModel(nn.Module):
         else:
             n_bert_embed = 0
 
-        self.emb_dict = nn.ModuleList([
-            nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed[dict_k])
-            for dict_k in range(len(extra_dicts))
-        ])
-
         self.embed_dropout = nn.Dropout(self._conf.embed_dropout)
 
-        # another hack
-        # self._conf.n_dict_embed = 2
+        if self._conf.with_extra_dictionarys:
+            self.emb_dict = nn.ModuleList([
+                nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed[dict_k])
+                for dict_k in range(len(extra_dicts))
+            ])
+            # another hack
+            # self._conf.n_dict_embed = 2
 
-        n_dict_embed = 0
-        for n_e, max_l, min_l in zip(self._conf.n_dict_embed, self._conf.max_word_len, self._conf.min_word_len):
-            n_dict_embed += (max_l - min_l + 1) * n_e
+            n_dict_embed = 0
+            for n_e, max_l, min_l in zip(self._conf.n_dict_embed, self._conf.max_word_len, self._conf.min_word_len):
+                n_dict_embed += (max_l - min_l + 1) * n_e
 
-        self.dict_weight = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
+            self.dict_embed_dropout = nn.Dropout(self._conf.embed_dropout)
 
-        self.dict_bias = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
+            self.dict_weight = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
+
+            self.dict_bias = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
+
+
 
         self.lstm = nn.LSTM(input_size=self._conf.n_char_embed*2+n_bert_embed,
                             hidden_size=self._conf.n_lstm_hidden,
@@ -71,7 +76,7 @@ class CWSModel(nn.Module):
                             bidirectional=True)
 
         self.ffns = nn.ModuleList([
-            nn.Linear(in_features=self._conf.n_lstm_hidden*2,
+            nn.Linear(in_features=self._conf.n_lstm_hidden*2,  # + n_dict_embed,
                       out_features=len(label_dict))
             for _ in range(len(self._conf.train_files))
         ])
@@ -92,18 +97,21 @@ class CWSModel(nn.Module):
         else:
             x = self.embed_dropout(torch.cat((emb_char, emb_bichar), -1))
 
-        emb_dict = [None] * len(self.emb_dict)
-        for i, emb_dict_layer in enumerate(self.emb_dict):
-            emb_this = emb_dict_layer(dict_feats[i])
-            emb_dict[i] = emb_this.view((batch_size, seq_len, -1))
-        emb_dict = torch.cat(tuple(emb_dict), -1)
-        # emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
-        # emb_dict = dict_feats.float()
+        if self.emb_dict:
+            emb_dict = [None] * len(self.emb_dict)
+            for i, emb_dict_layer in enumerate(self.emb_dict):
+                emb_this = emb_dict_layer(dict_feats[i])
+                emb_dict[i] = emb_this.view((batch_size, seq_len, -1))
 
-        attn_w = self.dict_weight(emb_dict) # (B, L, len(x))
-        attn_b = self.dict_bias(emb_dict) # (B, L, len(x))
+            emb_dict = self.dict_embed_dropout(torch.cat(tuple(emb_dict), -1))
 
-        x = torch.addcmul(attn_b, attn_w, x)
+            # emb_dict = self.emb_dict(dict_feats).view((batch_size, seq_len, -1))
+            # emb_dict = dict_feats.float()
+
+            attn_w = self.dict_weight(emb_dict) # (B, L, len(x))
+            attn_b = self.dict_bias(emb_dict) # (B, L, len(x))
+
+            x = torch.addcmul(attn_b, attn_w, x)
 
         sorted_lens, sorted_indices = torch.sort(lens, descending=True)
         inverse_indices = sorted_indices.argsort()
@@ -112,6 +120,7 @@ class CWSModel(nn.Module):
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         x = x[inverse_indices]
 
+        # x = torch.cat((x, emb_dict), -1)
         x = self.ffns[index](x)
 
         return x
