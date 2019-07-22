@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import random
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from src.common import pad, unk
 from src.metric import Metric
@@ -146,13 +147,13 @@ class CWS(object):
                 self._metric.clear()
 
             if best_accuracy < current_fmeasure - 1e-3:
-                if eval_cnt > self._conf.patience:
-                    self._model.save_model(self._conf.path,
-                                           eval_cnt)
-                    for test in self._test_datasets:
-                        self.evaluate(test)
-                        self._metric.compute_and_output(test, eval_cnt)
-                        self._metric.clear()
+                # if eval_cnt > self._conf.patience:
+                self._model.save_model(self._conf.path,
+                                        eval_cnt)
+                for test in self._test_datasets:
+                    self.evaluate(test)
+                    self._metric.compute_and_output(test, eval_cnt)
+                    self._metric.clear()
 
                 best_eval_cnt = eval_cnt
                 best_accuracy = current_fmeasure
@@ -264,46 +265,56 @@ class CWS(object):
     def extract_dict_features(self, chars, dict_k, type="train"):
         max_len = self._conf.max_word_len[dict_k]
         min_len = self._conf.min_word_len[dict_k]
-        result = np.zeros((len(chars), max_len - min_len + 1), dtype=int)
-        for i in range(len(chars)):
-            # fw
-            for l in range(min_len, max_len + 1):
-                if (i + l - 1) >= len(chars):
-                    continue
-                word = ''.join(chars[i: i + l])
-                if word in self._extra_dicts[type][dict_k]:
-                    result[i][l - min_len] |= 1
-                    result[i + l - 1][l - min_len] |= 4
-                    for mid in range(i + 1, i + l - 1):
-                        result[mid][l - min_len] |= 2
-        return result
-
-        # AAAI-18 的词典特征
-        # result = []
-        # for i in range(len(chars)):
-        #     # fw
-        #     word_tag = []
-        #     for l in range(max_len - 1, min_len - 2, -1):
-        #         if (i - l) < 0:
-        #             word_tag.append(0)
-        #             continue
-        #         word = ''.join(chars[i - l:i + 1])
-        #         if word in self._extra_dicts:
-        #             word_tag.append(self._extra_dicts[word])
-        #         else:
-        #             word_tag.append(0)
-        #     # bw
-        #     for l in range(min_len - 1, max_len):
-        #         if (i + l) >= len(chars):
-        #             word_tag.append(0)
-        #             continue
-        #         word = ''.join(chars[i:i + l + 1])
-        #         if word in self._extra_dicts:
-        #             word_tag.append(self._extra_dicts[word])
-        #         else:
-        #             word_tag.append(0)
-        #     result.append(word_tag)
-        # return result
+        if self._conf.dict_feature_type == 'ours':
+            result = np.zeros((len(chars), max_len - min_len + 1), dtype=int)
+            for i in range(len(chars)):
+                # fw
+                for l in range(min_len, max_len + 1):
+                    if (i + l - 1) >= len(chars):
+                        continue
+                    word = ''.join(chars[i: i + l])
+                    # is_extract = False
+                    if word in self._extra_dicts[type][dict_k]:
+                    #     if type != "train" or random.random() < 0.8:
+                    #         is_extract = True
+                    # else:
+                    #     if type == "train" and random.random() < 0.05:
+                    #         is_extract = True
+                    #     if is_extract:
+                        result[i][l - min_len] |= 1
+                        result[i + l - 1][l - min_len] |= 4
+                        for mid in range(i + 1, i + l - 1):
+                            result[mid][l - min_len] |= 2
+            return result
+        else:
+            # AAAI-18 的词典特征
+            result = []
+            for i in range(len(chars)):
+                # fw
+                word_tag = []
+                for l in range(max_len - 1, min_len - 2, -1):
+                    if (i - l) < 0:
+                        word_tag.append(0)
+                        continue
+                    word = ''.join(chars[i - l:i + 1])
+                    if word in self._extra_dicts[type][dict_k]:
+                        # word_tag.append(self._extra_dicts[type][dict_k][word])
+                        word_tag.append(1)
+                    else:
+                        word_tag.append(0)
+                # bw
+                for l in range(min_len - 1, max_len):
+                    if (i + l) >= len(chars):
+                        word_tag.append(0)
+                        continue
+                    word = ''.join(chars[i:i + l + 1])
+                    if word in self._extra_dicts[type][dict_k]:
+                        # word_tag.append(self._extra_dicts[type][word])
+                        word_tag.append(1)
+                    else:
+                        word_tag.append(0)
+                result.append(word_tag)
+            return result
 
     def load_extra_dicts(self, dict_files):
 

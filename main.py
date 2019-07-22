@@ -5,6 +5,8 @@ import os
 import random
 
 import torch
+import numpy as np
+import ast
 from src import CWS, Config
 
 if __name__ == '__main__':
@@ -23,6 +25,12 @@ if __name__ == '__main__':
     argparser.add_argument('--is-dictionary-exist', action='store_true')
     argparser.add_argument('--is-train', action='store_true')
     argparser.add_argument('--is-test', action='store_true')
+    argparser.add_argument('--dict-feature-type', default='ours',
+                           help="type of dictionary 'ours' or 'aaai'")
+    argparser.add_argument('--dict-concat-type', default=None,
+                           help="type of dictionary 'pre' or 'post'")
+    argparser.add_argument('--with-dict-emb', default=True, type=ast.literal_eval)
+    argparser.add_argument('--with_extra_dictionarys', default=True, type=ast.literal_eval)
 
     args = argparser.parse_args()
     print(f"Set the max num of threads to {args.threads}")
@@ -30,6 +38,8 @@ if __name__ == '__main__':
     print(f"Set the device with ID {args.device} visible")
     torch.set_num_threads(args.threads)
     torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    np.random.seed(args.seed)
     random.seed(args.seed)
     os.environ['CUDA_VISIBLE_DEVICES'] = args.device
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'

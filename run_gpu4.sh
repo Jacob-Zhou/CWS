@@ -1,12 +1,41 @@
-exe="nohup python -u main.py"
+exe="python -u main.py"
 
-# $exe --device 4 --config config_zx.ini --path=exp/zx.cd --is-dictionary-exist --is-train > results/log.cd.zx 2>&1 
-# $exe --device 4 --config config_zx_test.ini --path=exp/zx.cd --is-test > results/log.test.cd.zx 2>&1 
-# $exe --device 4 --config config_zx.bert.ini --path=exp/zx.cd.bert --is-train > results/log.create-dict.zx.bert 2>&1 
-# $exe --device -1 --config config_zx.bert.ms.ini --path=exp/zx.ms.mlt.bert --is-train > results/log.create-dict.zx.ms.mlt.bert 2>&1 
-# $exe --device 4 --config config_zx.bert.ms.ini --path=exp/zx.ms.mlt.bert --is-dictionary-exist --is-train > results/log.zx.ms.mlt.bert 2>&1 
-$exe --device 4 --config config_zx.ms.ini --path=exp/zx.ms.mlt --is-train > results/log.zx.ms.mlt 2>&1 
-$exe --device 4 --config config_zx.ms.ini --path=exp/zx.ms.mlt --is-dictionary-exist --is-train > results/log.zx.ms.mlt 2>&1 
-# $exe --device 4 --config config_zx.ms.ini --path=exp/zx.ms --is-test > results/log.test.zx.ms 2>&1 
-# $exe --device 1 --config config_zx.bert.ms.ini --path=exp/zx.ms.bert --is-test > results/log.test.zx.ms.bert.ctb5_bpe 2>&1 
-# $exe --device 4 --config config_zx_test.bert.ini --path=exp/zx.cd.bert --is-test > results/log.test.zx.cd.bert.lr_4 2>&1 &
+$exe --device 1 --config config_zx.ini --path=exp/zx --with_extra_dictionarys=False --is-dictionary-exist --is-train > results/log.zx 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10 --with_extra_dictionarys=False --is-dictionary-exist --is-train > results/log.sighan10 2>&1 
+
+echo "no embedding & pre concat"
+
+$exe --device 1 --config config_zx.ini --path=exp/zx.aaai.ne_pre_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=False --dict-concat-type=pre --is-dictionary-exist --is-train > results/log.zx.aaai.ne_pre_concat 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10.aaai.ne_pre_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=False --dict-concat-type=pre --is-dictionary-exist --is-train > results/log.sighan10.aaai.ne_pre_concat 2>&1 
+
+echo "no embedding & post concat"
+
+$exe --device 1 --config config_zx.ini --path=exp/zx.aaai.ne_post_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=False --dict-concat-type=post --is-dictionary-exist --is-train > results/log.zx.aaai.ne_post_concat 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10.aaai.ne_post_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=False --dict-concat-type=post --is-dictionary-exist --is-train > results/log.sighan10.aaai.ne_post_concat 2>&1 
+
+echo "embedding & pre concat"
+
+$exe --device 1 --config config_zx.ini --path=exp/zx.aaai.pre_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=pre --is-dictionary-exist --is-train > results/log.zx.aaai.pre_concat 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10.aaai.pre_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=pre --is-dictionary-exist --is-train > results/log.sighan10.aaai.pre_concat 2>&1 
+
+echo "embedding & post concat"
+
+$exe --device 1 --config config_zx.ini --path=exp/zx.aaai.post_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=post --is-dictionary-exist --is-train > results/log.zx.aaai.post_concat 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10.aaai.post_concat --dict-feature-type=aaai --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=post --is-dictionary-exist --is-train > results/log.sighan10.aaai.post_concat 2>&1 
+
+echo "ours embedding & pre concat"
+
+$exe --device 1 --config config_zx.ini --path=exp/zx.cd.pre_concat --dict-feature-type=ours --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=pre --is-dictionary-exist --is-train > results/log.zx.cd.pre_concat 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10.cd.pre_concat --dict-feature-type=ours --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=pre --is-dictionary-exist --is-train > results/log.sighan10.cd.pre_concat 2>&1 
+
+echo "ours embedding & post concat"
+
+$exe --device 1 --config config_zx.ini --path=exp/zx.cd.post_concat --dict-feature-type=ours --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=post --is-dictionary-exist --is-train > results/log.zx.cd.post_concat 2>&1 
+
+$exe --device 1 --config config_sighan10.ini --path=exp/sighan10.cd.post_concat --dict-feature-type=ours --with_extra_dictionarys=True --with-dict-emb=True --dict-concat-type=post --is-dictionary-exist --is-train > results/log.sighan10.cd.post_concat 2>&1 

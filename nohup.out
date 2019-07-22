@@ -1,0 +1,526 @@
+Set the max num of threads to 4
+Set the seed for generating random numbers to 1
+Set the device with ID 4 visible
+read config from config_zx.50.ini
+Loaded config file successfully.
+---------------------+--------------------------
+Param                | Value                    
+---------------------+--------------------------
+is_test              | False
+is_train             | True
+threads              | 4
+inst_num_max         | -1
+max_bucket_num       | 72
+max_sent_length      | 500
+sent_batch_size      | 10
+char_batch_sizes     | (500, 5000)
+min_word_len         | (2,)
+max_word_len         | (8,)
+with_bert            | 0
+with_extra_dictionarys | True
+model_eval_num       | 16
+path                 | exp/zx.50.cd
+train_files          | ('data/zx/train.conll',)
+dev_files            | ('data/zx/dev.conll',)
+test_files           | ('data/zx/test.conll',)
+train_extra_dictionarys | ('data/dict/dict_1',)
+dev_extra_dictionarys | ('data/dict/dict_1',)
+test_extra_dictionarys | ('data/dict/dict_1, data/dict/zx_dict.txt',)
+bert_path            | data/bert-base-chinese.tar.gz
+bert_vocab           | data/bert-base-chinese-vocab.txt
+bert_config          | data/bert_config.json
+is_dictionary_exist  | False
+train_max_eval_num   | 1000
+cutoff_freq          | 1
+patience             | 10
+n_char_embed         | 50
+n_dict_embed         | (50,)
+n_bert_layers        | 4
+n_bert_embed         | 100
+embed_dropout        | 0.5
+n_lstm_hidden        | 150
+n_lstm_layers        | 2
+lstm_dropout         | 0.2
+lr                   | 0.001
+clip                 | 5.0
+exp_des              | description of this experiment
+config               | config_zx.50.ini
+device               | cuda
+seed                 | 1
+dict_feature_type    | ours
+dict_concat_type     | None
+with_dict_emb        | True
+---------------------+--------------------------
+
+Reading data_zx_train.conll done: 18090 instances 798415 chars
+i, inst_num, max_len, batch_num, batch_num_total =  0 2285 11 50 0
+i, inst_num, max_len, batch_num, batch_num_total =  1 926 16 30 50
+i, inst_num, max_len, batch_num, batch_num_total =  2 909 19 35 80
+i, inst_num, max_len, batch_num, batch_num_total =  3 736 22 32 115
+i, inst_num, max_len, batch_num, batch_num_total =  4 480 24 23 147
+i, inst_num, max_len, batch_num, batch_num_total =  5 470 26 24 170
+i, inst_num, max_len, batch_num, batch_num_total =  6 532 28 30 194
+i, inst_num, max_len, batch_num, batch_num_total =  7 536 30 32 224
+i, inst_num, max_len, batch_num, batch_num_total =  8 527 32 34 256
+i, inst_num, max_len, batch_num, batch_num_total =  9 519 34 35 290
+i, inst_num, max_len, batch_num, batch_num_total =  10 475 36 34 325
+i, inst_num, max_len, batch_num, batch_num_total =  11 520 38 40 359
+i, inst_num, max_len, batch_num, batch_num_total =  12 495 40 40 399
+i, inst_num, max_len, batch_num, batch_num_total =  13 491 42 41 439
+i, inst_num, max_len, batch_num, batch_num_total =  14 475 44 42 480
+i, inst_num, max_len, batch_num, batch_num_total =  15 446 46 41 522
+i, inst_num, max_len, batch_num, batch_num_total =  16 442 48 42 563
+i, inst_num, max_len, batch_num, batch_num_total =  17 432 50 43 605
+i, inst_num, max_len, batch_num, batch_num_total =  18 218 51 22 648
+i, inst_num, max_len, batch_num, batch_num_total =  19 407 53 43 670
+i, inst_num, max_len, batch_num, batch_num_total =  20 386 55 42 713
+i, inst_num, max_len, batch_num, batch_num_total =  21 367 57 42 755
+i, inst_num, max_len, batch_num, batch_num_total =  22 339 59 40 797
+i, inst_num, max_len, batch_num, batch_num_total =  23 330 61 40 837
+i, inst_num, max_len, batch_num, batch_num_total =  24 335 63 42 877
+i, inst_num, max_len, batch_num, batch_num_total =  25 296 65 38 919
+i, inst_num, max_len, batch_num, batch_num_total =  26 274 67 37 957
+i, inst_num, max_len, batch_num, batch_num_total =  27 256 69 35 994
+i, inst_num, max_len, batch_num, batch_num_total =  28 204 71 29 1029
+i, inst_num, max_len, batch_num, batch_num_total =  29 234 73 34 1058
+i, inst_num, max_len, batch_num, batch_num_total =  30 204 75 31 1092
+i, inst_num, max_len, batch_num, batch_num_total =  31 189 77 29 1123
+i, inst_num, max_len, batch_num, batch_num_total =  32 181 79 29 1152
+i, inst_num, max_len, batch_num, batch_num_total =  33 157 81 25 1181
+i, inst_num, max_len, batch_num, batch_num_total =  34 202 84 34 1206
+i, inst_num, max_len, batch_num, batch_num_total =  35 139 86 24 1240
+i, inst_num, max_len, batch_num, batch_num_total =  36 143 88 25 1264
+i, inst_num, max_len, batch_num, batch_num_total =  37 180 91 33 1289
+i, inst_num, max_len, batch_num, batch_num_total =  38 163 94 31 1322
+i, inst_num, max_len, batch_num, batch_num_total =  39 134 97 26 1353
+i, inst_num, max_len, batch_num, batch_num_total =  40 116 100 23 1379
+i, inst_num, max_len, batch_num, batch_num_total =  41 137 104 28 1402
+i, inst_num, max_len, batch_num, batch_num_total =  42 107 108 23 1430
+i, inst_num, max_len, batch_num, batch_num_total =  43 112 113 25 1453
+i, inst_num, max_len, batch_num, batch_num_total =  44 110 118 26 1478
+i, inst_num, max_len, batch_num, batch_num_total =  45 102 124 25 1504
+i, inst_num, max_len, batch_num, batch_num_total =  46 89 131 23 1529
+i, inst_num, max_len, batch_num, batch_num_total =  47 73 139 20 1552
+i, inst_num, max_len, batch_num, batch_num_total =  48 50 147 15 1572
+i, inst_num, max_len, batch_num, batch_num_total =  49 46 155 14 1587
+i, inst_num, max_len, batch_num, batch_num_total =  50 44 165 15 1601
+i, inst_num, max_len, batch_num, batch_num_total =  51 38 188 14 1616
+i, inst_num, max_len, batch_num, batch_num_total =  52 32 418 27 1630
+data_zx_train.conll can provide 1657 batches in total with 53 buckets
+create dict...
+	Saved 4163 vocab into exp/zx.50.cd/dict/chars
+
+	Saved 173482 vocab into exp/zx.50.cd/dict/bichars
+
+	Saved 4 vocab into exp/zx.50.cd/dict/labels
+
+save dict done
+Loading dict chars done: 3621 keys; unk_index=1
+Loading dict bichars done: 73477 keys; unk_index=1
+Loading dict labels done: 4 keys; unk_index=-1
+load dict done
+Set the max num of threads to 4
+Set the seed for generating random numbers to 1
+Set the device with ID 4 visible
+read config from config_sighan10.50.ini
+Loaded config file successfully.
+---------------------+--------------------------
+Param                | Value                    
+---------------------+--------------------------
+is_test              | False
+is_train             | True
+threads              | 4
+inst_num_max         | -1
+max_bucket_num       | 72
+max_sent_length      | 2500
+sent_batch_size      | 10
+char_batch_sizes     | (500, 500, 500, 500)
+min_word_len         | (2,)
+max_word_len         | (5,)
+with_bert            | 0
+with_extra_dictionarys | True
+model_eval_num       | 16
+path                 | exp/sighan10.50.cd
+train_files          | ('data/sighan10/train.conll',)
+dev_files            | ('data/sighan10/dev.conll',)
+test_files           | ('data/sighan10/com_test.conll', 'data/sighan10/fin_test.conll', 'data/sighan10/med_test.conll', 'data/sighan10/lit_test.conll')
+train_extra_dictionarys | ('data/dict/dict_1',)
+dev_extra_dictionarys | ('data/dict/dict_1',)
+test_extra_dictionarys | ('data/dict/dict_1',)
+bert_path            | data/bert-base-chinese.tar.gz
+bert_vocab           | data/bert-base-chinese-vocab.txt
+bert_config          | data/bert_config.json
+is_dictionary_exist  | False
+train_max_eval_num   | 1000
+cutoff_freq          | 1
+patience             | 10
+n_char_embed         | 50
+n_dict_embed         | (5,)
+n_bert_layers        | 4
+n_bert_embed         | 100
+embed_dropout        | 0.5
+n_lstm_hidden        | 150
+n_lstm_layers        | 2
+lstm_dropout         | 0.2
+lr                   | 0.001
+clip                 | 5.0
+exp_des              | description of this experiment
+config               | config_sighan10.50.ini
+device               | cuda
+seed                 | 1
+dict_feature_type    | ours
+dict_concat_type     | None
+with_dict_emb        | True
+---------------------+--------------------------
+
+Reading data_sighan10_train.conll done: 19054 instances 1787559 chars
+i, inst_num, max_len, batch_num, batch_num_total =  0 3554 11 78 0
+i, inst_num, max_len, batch_num, batch_num_total =  1 1519 19 58 78
+i, inst_num, max_len, batch_num, batch_num_total =  2 1017 27 55 136
+i, inst_num, max_len, batch_num, batch_num_total =  3 592 35 41 191
+i, inst_num, max_len, batch_num, batch_num_total =  4 424 43 36 232
+i, inst_num, max_len, batch_num, batch_num_total =  5 539 51 55 268
+i, inst_num, max_len, batch_num, batch_num_total =  6 476 57 54 323
+i, inst_num, max_len, batch_num, batch_num_total =  7 468 62 58 377
+i, inst_num, max_len, batch_num, batch_num_total =  8 435 66 57 435
+i, inst_num, max_len, batch_num, batch_num_total =  9 407 70 57 492
+i, inst_num, max_len, batch_num, batch_num_total =  10 378 74 56 549
+i, inst_num, max_len, batch_num, batch_num_total =  11 359 78 56 605
+i, inst_num, max_len, batch_num, batch_num_total =  12 357 82 59 661
+i, inst_num, max_len, batch_num, batch_num_total =  13 366 86 63 720
+i, inst_num, max_len, batch_num, batch_num_total =  14 356 90 64 783
+i, inst_num, max_len, batch_num, batch_num_total =  15 339 94 64 847
+i, inst_num, max_len, batch_num, batch_num_total =  16 283 97 55 911
+i, inst_num, max_len, batch_num, batch_num_total =  17 273 100 55 966
+i, inst_num, max_len, batch_num, batch_num_total =  18 247 103 51 1021
+i, inst_num, max_len, batch_num, batch_num_total =  19 288 107 62 1072
+i, inst_num, max_len, batch_num, batch_num_total =  20 280 111 62 1134
+i, inst_num, max_len, batch_num, batch_num_total =  21 282 115 65 1196
+i, inst_num, max_len, batch_num, batch_num_total =  22 227 118 54 1261
+i, inst_num, max_len, batch_num, batch_num_total =  23 250 122 61 1315
+i, inst_num, max_len, batch_num, batch_num_total =  24 242 126 61 1376
+i, inst_num, max_len, batch_num, batch_num_total =  25 234 130 61 1437
+i, inst_num, max_len, batch_num, batch_num_total =  26 233 134 62 1498
+i, inst_num, max_len, batch_num, batch_num_total =  27 183 137 50 1560
+i, inst_num, max_len, batch_num, batch_num_total =  28 204 141 58 1610
+i, inst_num, max_len, batch_num, batch_num_total =  29 194 145 56 1668
+i, inst_num, max_len, batch_num, batch_num_total =  30 199 149 59 1724
+i, inst_num, max_len, batch_num, batch_num_total =  31 197 153 60 1783
+i, inst_num, max_len, batch_num, batch_num_total =  32 196 158 62 1843
+i, inst_num, max_len, batch_num, batch_num_total =  33 162 162 52 1905
+i, inst_num, max_len, batch_num, batch_num_total =  34 191 167 64 1957
+i, inst_num, max_len, batch_num, batch_num_total =  35 163 172 56 2021
+i, inst_num, max_len, batch_num, batch_num_total =  36 154 177 55 2077
+i, inst_num, max_len, batch_num, batch_num_total =  37 142 182 52 2132
+i, inst_num, max_len, batch_num, batch_num_total =  38 144 187 54 2184
+i, inst_num, max_len, batch_num, batch_num_total =  39 150 193 58 2238
+i, inst_num, max_len, batch_num, batch_num_total =  40 127 198 50 2296
+i, inst_num, max_len, batch_num, batch_num_total =  41 145 204 59 2346
+i, inst_num, max_len, batch_num, batch_num_total =  42 133 210 56 2405
+i, inst_num, max_len, batch_num, batch_num_total =  43 131 218 57 2461
+i, inst_num, max_len, batch_num, batch_num_total =  44 120 224 54 2518
+i, inst_num, max_len, batch_num, batch_num_total =  45 113 230 52 2572
+i, inst_num, max_len, batch_num, batch_num_total =  46 123 238 59 2624
+i, inst_num, max_len, batch_num, batch_num_total =  47 103 246 51 2683
+i, inst_num, max_len, batch_num, batch_num_total =  48 111 253 56 2734
+i, inst_num, max_len, batch_num, batch_num_total =  49 99 260 51 2790
+i, inst_num, max_len, batch_num, batch_num_total =  50 97 268 52 2841
+i, inst_num, max_len, batch_num, batch_num_total =  51 93 276 51 2893
+i, inst_num, max_len, batch_num, batch_num_total =  52 77 284 44 2944
+i, inst_num, max_len, batch_num, batch_num_total =  53 57 292 33 2988
+i, inst_num, max_len, batch_num, batch_num_total =  54 73 300 44 3021
+i, inst_num, max_len, batch_num, batch_num_total =  55 60 308 37 3065
+i, inst_num, max_len, batch_num, batch_num_total =  56 71 316 45 3102
+i, inst_num, max_len, batch_num, batch_num_total =  57 48 325 31 3147
+i, inst_num, max_len, batch_num, batch_num_total =  58 48 334 32 3178
+i, inst_num, max_len, batch_num, batch_num_total =  59 48 345 33 3210
+i, inst_num, max_len, batch_num, batch_num_total =  60 45 356 32 3243
+i, inst_num, max_len, batch_num, batch_num_total =  61 42 367 31 3275
+i, inst_num, max_len, batch_num, batch_num_total =  62 43 378 33 3306
+i, inst_num, max_len, batch_num, batch_num_total =  63 40 393 31 3339
+i, inst_num, max_len, batch_num, batch_num_total =  64 38 410 31 3370
+i, inst_num, max_len, batch_num, batch_num_total =  65 37 425 31 3401
+i, inst_num, max_len, batch_num, batch_num_total =  66 35 448 31 3432
+i, inst_num, max_len, batch_num, batch_num_total =  67 35 468 33 3463
+i, inst_num, max_len, batch_num, batch_num_total =  68 32 490 31 3496
+i, inst_num, max_len, batch_num, batch_num_total =  69 30 527 32 3527
+i, inst_num, max_len, batch_num, batch_num_total =  70 28 570 32 3559
+i, inst_num, max_len, batch_num, batch_num_total =  71 26 642 33 3591
+i, inst_num, max_len, batch_num, batch_num_total =  72 23 701 32 3624
+i, inst_num, max_len, batch_num, batch_num_total =  73 19 1019 39 3656
+data_sighan10_train.conll can provide 3695 batches in total with 74 buckets
+create dict...
+	Saved 4628 vocab into exp/sighan10.50.cd/dict/chars
+
+	Saved 274560 vocab into exp/sighan10.50.cd/dict/bichars
+
+	Saved 4 vocab into exp/sighan10.50.cd/dict/labels
+
+save dict done
+Loading dict chars done: 4119 keys; unk_index=1
+Loading dict bichars done: 129814 keys; unk_index=1
+Loading dict labels done: 4 keys; unk_index=-1
+load dict done
+Set the max num of threads to 4
+Set the seed for generating random numbers to 1
+Set the device with ID 4 visible
+read config from config_zx.50.ini
+Loaded config file successfully.
+---------------------+--------------------------
+Param                | Value                    
+---------------------+--------------------------
+is_test              | False
+is_train             | True
+threads              | 4
+inst_num_max         | -1
+max_bucket_num       | 72
+max_sent_length      | 500
+sent_batch_size      | 10
+char_batch_sizes     | (500, 5000)
+min_word_len         | (2,)
+max_word_len         | (8,)
+with_bert            | 0
+with_extra_dictionarys | True
+model_eval_num       | 16
+path                 | exp/zx.50.aaai.embed
+train_files          | ('data/zx/train.conll',)
+dev_files            | ('data/zx/dev.conll',)
+test_files           | ('data/zx/test.conll',)
+train_extra_dictionarys | ('data/dict/dict_1',)
+dev_extra_dictionarys | ('data/dict/dict_1',)
+test_extra_dictionarys | ('data/dict/dict_1, data/dict/zx_dict.txt',)
+bert_path            | data/bert-base-chinese.tar.gz
+bert_vocab           | data/bert-base-chinese-vocab.txt
+bert_config          | data/bert_config.json
+is_dictionary_exist  | False
+train_max_eval_num   | 1000
+cutoff_freq          | 1
+patience             | 10
+n_char_embed         | 50
+n_dict_embed         | (50,)
+n_bert_layers        | 4
+n_bert_embed         | 100
+embed_dropout        | 0.5
+n_lstm_hidden        | 150
+n_lstm_layers        | 2
+lstm_dropout         | 0.2
+lr                   | 0.001
+clip                 | 5.0
+exp_des              | description of this experiment
+config               | config_zx.50.ini
+device               | cuda
+seed                 | 1
+dict_feature_type    | aaai
+dict_concat_type     | None
+with_dict_emb        | True
+---------------------+--------------------------
+
+Reading data_zx_train.conll done: 18090 instances 798415 chars
+i, inst_num, max_len, batch_num, batch_num_total =  0 2285 11 50 0
+i, inst_num, max_len, batch_num, batch_num_total =  1 926 16 30 50
+i, inst_num, max_len, batch_num, batch_num_total =  2 909 19 35 80
+i, inst_num, max_len, batch_num, batch_num_total =  3 736 22 32 115
+i, inst_num, max_len, batch_num, batch_num_total =  4 480 24 23 147
+i, inst_num, max_len, batch_num, batch_num_total =  5 470 26 24 170
+i, inst_num, max_len, batch_num, batch_num_total =  6 532 28 30 194
+i, inst_num, max_len, batch_num, batch_num_total =  7 536 30 32 224
+i, inst_num, max_len, batch_num, batch_num_total =  8 527 32 34 256
+i, inst_num, max_len, batch_num, batch_num_total =  9 519 34 35 290
+i, inst_num, max_len, batch_num, batch_num_total =  10 475 36 34 325
+i, inst_num, max_len, batch_num, batch_num_total =  11 520 38 40 359
+i, inst_num, max_len, batch_num, batch_num_total =  12 495 40 40 399
+i, inst_num, max_len, batch_num, batch_num_total =  13 491 42 41 439
+i, inst_num, max_len, batch_num, batch_num_total =  14 475 44 42 480
+i, inst_num, max_len, batch_num, batch_num_total =  15 446 46 41 522
+i, inst_num, max_len, batch_num, batch_num_total =  16 442 48 42 563
+i, inst_num, max_len, batch_num, batch_num_total =  17 432 50 43 605
+i, inst_num, max_len, batch_num, batch_num_total =  18 218 51 22 648
+i, inst_num, max_len, batch_num, batch_num_total =  19 407 53 43 670
+i, inst_num, max_len, batch_num, batch_num_total =  20 386 55 42 713
+i, inst_num, max_len, batch_num, batch_num_total =  21 367 57 42 755
+i, inst_num, max_len, batch_num, batch_num_total =  22 339 59 40 797
+i, inst_num, max_len, batch_num, batch_num_total =  23 330 61 40 837
+i, inst_num, max_len, batch_num, batch_num_total =  24 335 63 42 877
+i, inst_num, max_len, batch_num, batch_num_total =  25 296 65 38 919
+i, inst_num, max_len, batch_num, batch_num_total =  26 274 67 37 957
+i, inst_num, max_len, batch_num, batch_num_total =  27 256 69 35 994
+i, inst_num, max_len, batch_num, batch_num_total =  28 204 71 29 1029
+i, inst_num, max_len, batch_num, batch_num_total =  29 234 73 34 1058
+i, inst_num, max_len, batch_num, batch_num_total =  30 204 75 31 1092
+i, inst_num, max_len, batch_num, batch_num_total =  31 189 77 29 1123
+i, inst_num, max_len, batch_num, batch_num_total =  32 181 79 29 1152
+i, inst_num, max_len, batch_num, batch_num_total =  33 157 81 25 1181
+i, inst_num, max_len, batch_num, batch_num_total =  34 202 84 34 1206
+i, inst_num, max_len, batch_num, batch_num_total =  35 139 86 24 1240
+i, inst_num, max_len, batch_num, batch_num_total =  36 143 88 25 1264
+i, inst_num, max_len, batch_num, batch_num_total =  37 180 91 33 1289
+i, inst_num, max_len, batch_num, batch_num_total =  38 163 94 31 1322
+i, inst_num, max_len, batch_num, batch_num_total =  39 134 97 26 1353
+i, inst_num, max_len, batch_num, batch_num_total =  40 116 100 23 1379
+i, inst_num, max_len, batch_num, batch_num_total =  41 137 104 28 1402
+i, inst_num, max_len, batch_num, batch_num_total =  42 107 108 23 1430
+i, inst_num, max_len, batch_num, batch_num_total =  43 112 113 25 1453
+i, inst_num, max_len, batch_num, batch_num_total =  44 110 118 26 1478
+i, inst_num, max_len, batch_num, batch_num_total =  45 102 124 25 1504
+i, inst_num, max_len, batch_num, batch_num_total =  46 89 131 23 1529
+i, inst_num, max_len, batch_num, batch_num_total =  47 73 139 20 1552
+i, inst_num, max_len, batch_num, batch_num_total =  48 50 147 15 1572
+i, inst_num, max_len, batch_num, batch_num_total =  49 46 155 14 1587
+i, inst_num, max_len, batch_num, batch_num_total =  50 44 165 15 1601
+i, inst_num, max_len, batch_num, batch_num_total =  51 38 188 14 1616
+i, inst_num, max_len, batch_num, batch_num_total =  52 32 418 27 1630
+data_zx_train.conll can provide 1657 batches in total with 53 buckets
+create dict...
+	Saved 4163 vocab into exp/zx.50.aaai.embed/dict/chars
+
+	Saved 173482 vocab into exp/zx.50.aaai.embed/dict/bichars
+
+	Saved 4 vocab into exp/zx.50.aaai.embed/dict/labels
+
+save dict done
+Loading dict chars done: 3621 keys; unk_index=1
+Loading dict bichars done: 73477 keys; unk_index=1
+Loading dict labels done: 4 keys; unk_index=-1
+load dict done
+Set the max num of threads to 4
+Set the seed for generating random numbers to 1
+Set the device with ID 4 visible
+read config from config_sighan10.50.ini
+Loaded config file successfully.
+---------------------+--------------------------
+Param                | Value                    
+---------------------+--------------------------
+is_test              | False
+is_train             | True
+threads              | 4
+inst_num_max         | -1
+max_bucket_num       | 72
+max_sent_length      | 2500
+sent_batch_size      | 10
+char_batch_sizes     | (500, 500, 500, 500)
+min_word_len         | (2,)
+max_word_len         | (5,)
+with_bert            | 0
+with_extra_dictionarys | True
+model_eval_num       | 16
+path                 | exp/sighan10.50.aaai.embed
+train_files          | ('data/sighan10/train.conll',)
+dev_files            | ('data/sighan10/dev.conll',)
+test_files           | ('data/sighan10/com_test.conll', 'data/sighan10/fin_test.conll', 'data/sighan10/med_test.conll', 'data/sighan10/lit_test.conll')
+train_extra_dictionarys | ('data/dict/dict_1',)
+dev_extra_dictionarys | ('data/dict/dict_1',)
+test_extra_dictionarys | ('data/dict/dict_1',)
+bert_path            | data/bert-base-chinese.tar.gz
+bert_vocab           | data/bert-base-chinese-vocab.txt
+bert_config          | data/bert_config.json
+is_dictionary_exist  | False
+train_max_eval_num   | 1000
+cutoff_freq          | 1
+patience             | 10
+n_char_embed         | 50
+n_dict_embed         | (5,)
+n_bert_layers        | 4
+n_bert_embed         | 100
+embed_dropout        | 0.5
+n_lstm_hidden        | 150
+n_lstm_layers        | 2
+lstm_dropout         | 0.2
+lr                   | 0.001
+clip                 | 5.0
+exp_des              | description of this experiment
+config               | config_sighan10.50.ini
+device               | cuda
+seed                 | 1
+dict_feature_type    | aaai
+dict_concat_type     | None
+with_dict_emb        | True
+---------------------+--------------------------
+
+Reading data_sighan10_train.conll done: 19054 instances 1787559 chars
+i, inst_num, max_len, batch_num, batch_num_total =  0 3554 11 78 0
+i, inst_num, max_len, batch_num, batch_num_total =  1 1519 19 58 78
+i, inst_num, max_len, batch_num, batch_num_total =  2 1017 27 55 136
+i, inst_num, max_len, batch_num, batch_num_total =  3 592 35 41 191
+i, inst_num, max_len, batch_num, batch_num_total =  4 424 43 36 232
+i, inst_num, max_len, batch_num, batch_num_total =  5 539 51 55 268
+i, inst_num, max_len, batch_num, batch_num_total =  6 476 57 54 323
+i, inst_num, max_len, batch_num, batch_num_total =  7 468 62 58 377
+i, inst_num, max_len, batch_num, batch_num_total =  8 435 66 57 435
+i, inst_num, max_len, batch_num, batch_num_total =  9 407 70 57 492
+i, inst_num, max_len, batch_num, batch_num_total =  10 378 74 56 549
+i, inst_num, max_len, batch_num, batch_num_total =  11 359 78 56 605
+i, inst_num, max_len, batch_num, batch_num_total =  12 357 82 59 661
+i, inst_num, max_len, batch_num, batch_num_total =  13 366 86 63 720
+i, inst_num, max_len, batch_num, batch_num_total =  14 356 90 64 783
+i, inst_num, max_len, batch_num, batch_num_total =  15 339 94 64 847
+i, inst_num, max_len, batch_num, batch_num_total =  16 283 97 55 911
+i, inst_num, max_len, batch_num, batch_num_total =  17 273 100 55 966
+i, inst_num, max_len, batch_num, batch_num_total =  18 247 103 51 1021
+i, inst_num, max_len, batch_num, batch_num_total =  19 288 107 62 1072
+i, inst_num, max_len, batch_num, batch_num_total =  20 280 111 62 1134
+i, inst_num, max_len, batch_num, batch_num_total =  21 282 115 65 1196
+i, inst_num, max_len, batch_num, batch_num_total =  22 227 118 54 1261
+i, inst_num, max_len, batch_num, batch_num_total =  23 250 122 61 1315
+i, inst_num, max_len, batch_num, batch_num_total =  24 242 126 61 1376
+i, inst_num, max_len, batch_num, batch_num_total =  25 234 130 61 1437
+i, inst_num, max_len, batch_num, batch_num_total =  26 233 134 62 1498
+i, inst_num, max_len, batch_num, batch_num_total =  27 183 137 50 1560
+i, inst_num, max_len, batch_num, batch_num_total =  28 204 141 58 1610
+i, inst_num, max_len, batch_num, batch_num_total =  29 194 145 56 1668
+i, inst_num, max_len, batch_num, batch_num_total =  30 199 149 59 1724
+i, inst_num, max_len, batch_num, batch_num_total =  31 197 153 60 1783
+i, inst_num, max_len, batch_num, batch_num_total =  32 196 158 62 1843
+i, inst_num, max_len, batch_num, batch_num_total =  33 162 162 52 1905
+i, inst_num, max_len, batch_num, batch_num_total =  34 191 167 64 1957
+i, inst_num, max_len, batch_num, batch_num_total =  35 163 172 56 2021
+i, inst_num, max_len, batch_num, batch_num_total =  36 154 177 55 2077
+i, inst_num, max_len, batch_num, batch_num_total =  37 142 182 52 2132
+i, inst_num, max_len, batch_num, batch_num_total =  38 144 187 54 2184
+i, inst_num, max_len, batch_num, batch_num_total =  39 150 193 58 2238
+i, inst_num, max_len, batch_num, batch_num_total =  40 127 198 50 2296
+i, inst_num, max_len, batch_num, batch_num_total =  41 145 204 59 2346
+i, inst_num, max_len, batch_num, batch_num_total =  42 133 210 56 2405
+i, inst_num, max_len, batch_num, batch_num_total =  43 131 218 57 2461
+i, inst_num, max_len, batch_num, batch_num_total =  44 120 224 54 2518
+i, inst_num, max_len, batch_num, batch_num_total =  45 113 230 52 2572
+i, inst_num, max_len, batch_num, batch_num_total =  46 123 238 59 2624
+i, inst_num, max_len, batch_num, batch_num_total =  47 103 246 51 2683
+i, inst_num, max_len, batch_num, batch_num_total =  48 111 253 56 2734
+i, inst_num, max_len, batch_num, batch_num_total =  49 99 260 51 2790
+i, inst_num, max_len, batch_num, batch_num_total =  50 97 268 52 2841
+i, inst_num, max_len, batch_num, batch_num_total =  51 93 276 51 2893
+i, inst_num, max_len, batch_num, batch_num_total =  52 77 284 44 2944
+i, inst_num, max_len, batch_num, batch_num_total =  53 57 292 33 2988
+i, inst_num, max_len, batch_num, batch_num_total =  54 73 300 44 3021
+i, inst_num, max_len, batch_num, batch_num_total =  55 60 308 37 3065
+i, inst_num, max_len, batch_num, batch_num_total =  56 71 316 45 3102
+i, inst_num, max_len, batch_num, batch_num_total =  57 48 325 31 3147
+i, inst_num, max_len, batch_num, batch_num_total =  58 48 334 32 3178
+i, inst_num, max_len, batch_num, batch_num_total =  59 48 345 33 3210
+i, inst_num, max_len, batch_num, batch_num_total =  60 45 356 32 3243
+i, inst_num, max_len, batch_num, batch_num_total =  61 42 367 31 3275
+i, inst_num, max_len, batch_num, batch_num_total =  62 43 378 33 3306
+i, inst_num, max_len, batch_num, batch_num_total =  63 40 393 31 3339
+i, inst_num, max_len, batch_num, batch_num_total =  64 38 410 31 3370
+i, inst_num, max_len, batch_num, batch_num_total =  65 37 425 31 3401
+i, inst_num, max_len, batch_num, batch_num_total =  66 35 448 31 3432
+i, inst_num, max_len, batch_num, batch_num_total =  67 35 468 33 3463
+i, inst_num, max_len, batch_num, batch_num_total =  68 32 490 31 3496
+i, inst_num, max_len, batch_num, batch_num_total =  69 30 527 32 3527
+i, inst_num, max_len, batch_num, batch_num_total =  70 28 570 32 3559
+i, inst_num, max_len, batch_num, batch_num_total =  71 26 642 33 3591
+i, inst_num, max_len, batch_num, batch_num_total =  72 23 701 32 3624
+i, inst_num, max_len, batch_num, batch_num_total =  73 19 1019 39 3656
+data_sighan10_train.conll can provide 3695 batches in total with 74 buckets
+create dict...
+	Saved 4628 vocab into exp/sighan10.50.aaai.embed/dict/chars
+
+	Saved 274560 vocab into exp/sighan10.50.aaai.embed/dict/bichars
+
+	Saved 4 vocab into exp/sighan10.50.aaai.embed/dict/labels
+
+save dict done
+Loading dict chars done: 4119 keys; unk_index=1
+Loading dict bichars done: 129814 keys; unk_index=1
+Loading dict labels done: 4 keys; unk_index=-1
+load dict done
