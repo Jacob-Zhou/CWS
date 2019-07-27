@@ -61,7 +61,6 @@ class CWSModel(nn.Module):
                     nn.Embedding(num_embeddings=8, embedding_dim=self._conf.n_dict_embed[dict_k])
                     for dict_k in range(len(extra_dicts))
                 ])
-                # self.dict_embed_dropout = nn.Dropout(self._conf.embed_dropout)
             else:
                 if self._conf.with_dict_emb:
                     self.emb_dict = nn.ModuleList([
@@ -70,15 +69,25 @@ class CWSModel(nn.Module):
                     ])
 
             if self._conf.with_dict_emb:
+                self.dict_embed_dropout = nn.Dropout(self._conf.embed_dropout)
                 n_dict_embed = 0
-                for n_e, max_l, min_l in zip(self._conf.n_dict_embed, self._conf.max_word_len, self._conf.min_word_len):
-                    n_dict_embed += (max_l - min_l + 1) * n_e
-                if self.dft != "ours":
-                    n_dict_embed *= 2
+                # self.emb_dict_pos = []
+                # self.dict_pos = []
+                for dict_k, (n_e, max_l, min_l) in enumerate(zip(self._conf.n_dict_embed, self._conf.max_word_len, self._conf.min_word_len)):
+                    this_dict_embed = (max_l - min_l + 1) * n_e
+                    if self.dft != "ours":
+                        this_dict_embed *= 2
+                    # self.emb_dict_pos.append(nn.Embedding(num_embeddings=this_dict_embed // n_e, embedding_dim=self._conf.n_dict_embed[dict_k]))
+                    # self.dict_pos.append(torch.arange(this_dict_embed // n_e, dtype=torch.long, device=torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')))
+                    n_dict_embed += this_dict_embed
+                # self.emb_dict_pos = nn.ModuleList(self.emb_dict_pos)
             else:
                 n_dict_embed = 0
                 for max_l, min_l in zip(self._conf.max_word_len, self._conf.min_word_len):
                     n_dict_embed += (max_l - min_l + 1) * 2
+
+            if self.dft == "mm":
+                n_dict_embed = 2 * len(extra_dicts)
 
             if self.dct:
                 if self.dct == "post":
@@ -91,6 +100,9 @@ class CWSModel(nn.Module):
                     bidirectional=True)
                 elif self.dct == "pre":
                     pre_dict_dim = n_dict_embed
+                elif self.dct == "bilinear":
+                    pre_dict_dim = n_dict_embed
+                    self.connector = nn.Bilinear(n_dict_embed, self._conf.n_char_embed*2+n_bert_embed, self._conf.n_char_embed*2+n_bert_embed + pre_dict_dim)
             else:
                 self.dict_weight = nn.Linear(in_features=n_dict_embed, out_features=self._conf.n_char_embed*2+n_bert_embed)
 
@@ -128,15 +140,26 @@ class CWSModel(nn.Module):
         if self.with_dict:
             if self._conf.with_dict_emb:
                 emb_dict = [None] * len(self.emb_dict)
-                for i, emb_dict_layer in enumerate(self.emb_dict):
-                    emb_this = emb_dict_layer(dict_feats[i])
+                for i, (dict_feat, emb_dict_layer) in enumerate(zip(dict_feats, self.emb_dict)):
+                    # B, L, Dict_dim -> B, L, Dict_dim, Dict_Embed
+                    emb_this = emb_dict_layer(dict_feat)
                     emb_dict[i] = emb_this.view((batch_size, seq_len, -1))
+                    emb_dict[i] = self.dict_embed_dropout(emb_dict[i])
+                # for i, (dict_feat, emb_dict_layer, emb_dict_pos_layer, dict_pos) in enumerate(zip(dict_feats, self.emb_dict, self.emb_dict_pos, self.dict_pos)):
+                #     # B, L, Dict_dim -> B, L, Dict_dim, Dict_Embed
+                #     emb_this = emb_dict_layer(dict_feat)
+                #     # Dict_dim -> 1, 1, Dict_dim
+                #     dict_pos = dict_pos.view(1, 1, -1)
+                #     # 1, 1, Dict_dim -> B, L, Dict_dim
+                #     dict_pos = dict_pos.expand_as(dict_feat)
+                #     # B, L, Dict_dim -> B, L, Dict_dim, Dict_Embed
+                #     emb_dict_pos = emb_dict_pos_layer(dict_pos)
+                #     emb_this = emb_this + emb_dict_pos
+                #     emb_dict[i] = emb_this.view((batch_size, seq_len, -1))
             else:
                 emb_dict = [dict_feat.float() for dict_feat in dict_feats]
 
             emb_dict = torch.cat(tuple(emb_dict), -1)
-
-            # emb_dict = self.dict_embed_dropout(emb_dict)
 
         sorted_lens, sorted_indices = torch.sort(lens, descending=True)
         inverse_indices = sorted_indices.argsort()
@@ -149,6 +172,9 @@ class CWSModel(nn.Module):
                 emb_dict, _ = self.dict_lstm(emb_dict)
                 emb_dict, _ = pad_packed_sequence(emb_dict, True, total_length=seq_len)
                 emb_dict = emb_dict[inverse_indices]
+            elif self.dct == "bilinear":
+                residual = torch.cat((x, emb_dict), -1)
+                x = self.connector(emb_dict, x) + residual
             else:
                 attn_w = self.dict_weight(emb_dict) # (B, L, len(x))
                 attn_b = self.dict_bias(emb_dict) # (B, L, len(x))
@@ -173,9 +199,9 @@ class CWSModel(nn.Module):
         path = os.path.join(path, 'models.%s.%d' % (self.name, eval_num))
         print(path)
         self.load_state_dict(torch.load(path, map_location='cpu'))
-        print('Load model %s done.' % path)
+        print('  │ Load model %s done.' % path)
 
     def save_model(self, path, eval_num):
         path = os.path.join(path, 'models.%s.%d' % (self.name, eval_num))
         torch.save(self.state_dict(), path)
-        print('Save model %s done.' % path)
+        print('  │ Save model %s done.' % path)

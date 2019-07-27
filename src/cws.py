@@ -3,6 +3,7 @@
 import os
 import shutil
 import time
+import sys
 
 import torch
 import torch.nn as nn
@@ -14,6 +15,7 @@ from src.common import pad, unk
 from src.metric import Metric
 from src.model import CWSModel
 from src.utils import Dataset, VocabDict
+from torch import rand_like
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn.parallel import data_parallel
 
@@ -57,7 +59,7 @@ class CWS(object):
         ]).log()  # (FROM->TO)
 
         self._metric = Metric()
-        self._model = CWSModel('ws', conf)
+        self._model = CWSModel(conf.name, conf)
 
     def run(self):
         if self._conf.is_train:
@@ -124,9 +126,15 @@ class CWS(object):
         best_eval_cnt, best_accuracy = 0, 0.
         self._metric.clear()
         for eval_cnt in range(1, self._conf.train_max_eval_num + 1):
+            print("\n  ┌" + "─" * 50)
             self.set_training_mode(training=True)
             iters = [None] + [iter(aux) for aux in self._train_datasets[1:]]
+            out_idx = 0
             for batch in self._train_datasets[0]:
+                print(f"Epoch: {eval_cnt :<8d} Batch: {out_idx :<20d}", end="\r", file=sys.stderr)
+                out_idx += 1
+                if out_idx % 100 == 0:
+                    sys.stderr.flush()
                 for i in range(1, len(iters)):
                     self._optimizer.zero_grad()
                     try:
@@ -151,7 +159,8 @@ class CWS(object):
                 self._model.save_model(self._conf.path,
                                         eval_cnt)
                 for test in self._test_datasets:
-                    self.evaluate(test)
+                    self.evaluate(test,
+                          'evaluate/' + test.filename_short + '.out.e' + str(eval_cnt))
                     self._metric.compute_and_output(test, eval_cnt)
                     self._metric.clear()
 
@@ -165,9 +174,9 @@ class CWS(object):
               (best_accuracy, best_eval_cnt))
 
     def train_or_eval_one_batch(self, insts, index=0):
-        print('.', end='')
+        # print('.', end='')
         subwords, chars, bichars, labels, dict_feats = self.compose_batch(
-            insts)
+            insts, self.training)
         mask = chars.ne(self._char_dict.pad_index)
         time1 = time.time()
         out = self._model(subwords, chars, bichars, dict_feats, index)
@@ -286,7 +295,7 @@ class CWS(object):
                         for mid in range(i + 1, i + l - 1):
                             result[mid][l - min_len] |= 2
             return result
-        else:
+        elif self._conf.dict_feature_type == 'aaai':
             # AAAI-18 的词典特征
             result = []
             for i in range(len(chars)):
@@ -315,6 +324,44 @@ class CWS(object):
                         word_tag.append(0)
                 result.append(word_tag)
             return result
+        else:
+            fw_b = set()
+            bw_b = set()
+            c_len = len(chars)
+            i = 0
+            while i < len(chars):
+                # fw
+                find = False
+                for l in range(min_len, max_len + 1):
+                    if (i + l) > c_len:
+                        continue
+                    word = ''.join(chars[i: i + l])
+                    if word in self._extra_dicts[type][dict_k]:
+                        fw_b.add(i - 1)
+                        fw_b.add(i + l - 1)
+                        i = i + l
+                        find = True
+                        break
+                if not find:
+                    i = i + 1
+            i = len(chars) - 1
+            while i >= 0:
+                # bw
+                find = False
+                for l in range(min_len, max_len + 1):
+                    if (i - l + 1) < 0:
+                        continue
+                    word = ''.join(chars[i - l + 1: i + 1])
+                    if word in self._extra_dicts[type][dict_k]:
+                        bw_b.add(i)
+                        bw_b.add(i - l)
+                        i = i - l
+                        find = True
+                        break
+                if not find:
+                    i = i - 1
+            b = fw_b & bw_b
+            return [list(t) for t in zip([1 if i in b else 0 for i in range(c_len)], [1 if i in b else 0 for i in range(-1, c_len - 1)])]
 
     def load_extra_dicts(self, dict_files):
 
@@ -413,7 +460,7 @@ class CWS(object):
         self.training = training
         self._model.train(training)
 
-    def compose_batch(self, insts):
+    def compose_batch(self, insts, is_train=False):
         subwords, dict_feats = None, None
         if self._conf.with_bert:
             subwords = pad_sequence([inst.subwords_i for inst in insts], True)

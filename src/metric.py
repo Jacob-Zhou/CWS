@@ -42,7 +42,7 @@ class Metric(object):
 
     def compute_and_output(self, dataset, eval_cnt):
         self.time_gap = float(time.time() - self.start_time)
-        print("\n%30s(%5d): loss=%.3f " % (dataset.filename_short, eval_cnt,
+        print("  │%30s(%5d): loss=%.3f " % (dataset.filename_short, eval_cnt,
                                            self.total_loss / self.sent_num),
               end='')
         if self.gold_num > 0:

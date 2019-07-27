@@ -4,6 +4,7 @@ data
 # ignore results
 exp
 results
+evaluate
 
 # ignore pycache
 __pycache__
@@ -12,7 +13,7 @@ __pycache__
 log*
 
 # ignore test output
-*.out.0
+*.out.*
 
 # ignore saved model
 *.pkl

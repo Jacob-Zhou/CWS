@@ -15,6 +15,8 @@ if __name__ == '__main__':
                            default='description of this experiment')
     argparser.add_argument('--config', default='config.ini',
                            help='config file')
+    argparser.add_argument('--name', default='ws',
+                           help='model name')
     argparser.add_argument('--path', '-p', default='exp',
                            help='path to saved files')
     argparser.add_argument('--device', '-d', default='-1',
@@ -41,6 +43,8 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(args.seed)
     np.random.seed(args.seed)
     random.seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     os.environ['CUDA_VISIBLE_DEVICES'] = args.device
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

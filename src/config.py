@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 from ast import literal_eval
 from configparser import ConfigParser
 
@@ -17,13 +18,13 @@ class Config(object):
         print('Loaded config file successfully.')
 
     def __repr__(self):
-        s = "-" * 20 + "-+-" + "-" * 25 + "\n"
-        s += f"{'Param':20} | {'Value':25}\n"
-        s += "-" * 20 + "-+-" + "-" * 25 + "\n"
+        s = "─" * 20 + "─┬─" + "─" * 25 + "\n"
+        s += f"{'Param':20} │ {'Value':25}\n"
+        s += "─" * 20 + "─┼─" + "─" * 25 + "\n"
         for i, (option, value) in enumerate(self.kwargs.items()):
-            s += f"{option:20} | {value}\n"
-        s += "-" * 20 + "-+-" + "-" * 25 + "\n"
-
+            s += f"{option:20} │ {value}\n"
+        s += "─" * 20 + "─┴─" + "─" * 25 + "\n"
+        sys.stdout.flush()
         return s
 
     def __getattr__(self, attr):
